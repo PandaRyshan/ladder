@@ -26,7 +26,7 @@ services:
       - URL=${DOMAIN}
 #      - SUBDOMAINS=www,
       - VALIDATION=http
-      - DNSPLUGIN=cloudflare
+#      - DNSPLUGIN=cloudflare
 #      - PROPAGATION= #optional
 #      - DUCKDNSTOKEN= #optional
       - EMAIL=${EMAIL}
