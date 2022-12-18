@@ -1,0 +1,84 @@
+---
+version: "3.8"
+services:
+
+  v2ray:
+    image: "${V2RAY_TAG}"
+    container_name: v2ray
+    environment:
+      - TZ=${TZ}
+    volumes:
+      - ./etc/v2ray/config.json:/etc/v2ray/config.json
+      - ./log/v2ray:/var/log/v2ray
+    networks:
+      - v2raynet
+    ports:
+      - 10086:10086
+    restart: unless-stopped
+
+  swag:
+    image: "${NGINX_TAG}"
+    container_name: swag
+    cap_add:
+      - NET_ADMIN
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=${TZ}
+      - URL=${DOMAIN}
+#      - SUBDOMAINS=www,
+      - VALIDATION=http
+      - DNSPLUGIN=cloudflare
+#      - PROPAGATION= #optional
+#      - DUCKDNSTOKEN= #optional
+      - EMAIL=${EMAIL}
+#      - ONLY_SUBDOMAINS=false #optional
+#      - EXTRA_DOMAINS= #optional
+#      - STAGING=false #optional
+#      - MAXMINDDB_LICENSE_KEY= #optional
+    volumes:
+      - ./etc/nginx/nginx.conf:/config/nginx/nginx.conf
+      - ./etc/nginx/site-confs:/config/nginx/site-confs
+      - ./www:/config/nginx/www
+      - ./etc/cert:/config/etc/letsencrypt/live
+    networks:
+      - v2raynet
+    ports:
+      - 80:80
+    restart: unless-stopped
+
+  haproxy:
+    image: "${HAPROXY_TAG}"
+    container_name: haproxy
+    environment:
+      - TZ=${TZ}
+    volumes:
+      - ./etc/haproxy:/usr/local/etc/haproxy:ro
+      - ./etc/cert/${DOMAIN}:/etc/ssl/cert
+    networks:
+      - v2raynet
+    ports:
+      - ${PORT}:443
+    depends_on:
+      - swag
+      - v2ray
+    restart: unless-stopped
+
+
+networks:
+
+  v2raynet:
+    driver: bridge
+#    external: true
+#    driver: overlay
+#    attachable: true
+
+
+# volumes:
+
+#  cert:
+#    driver: local
+#    driver_opts:
+#      type: "none"
+#      o: "bind"
+#      device: ./etc/cert
