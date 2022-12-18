@@ -12,8 +12,6 @@ services:
       - ./log/v2ray:/var/log/v2ray
     networks:
       - v2raynet
-    ports:
-      - 10086:10086
     restart: unless-stopped
 
   swag:
@@ -69,16 +67,3 @@ networks:
 
   v2raynet:
     driver: bridge
-#    external: true
-#    driver: overlay
-#    attachable: true
-
-
-# volumes:
-
-#  cert:
-#    driver: local
-#    driver_opts:
-#      type: "none"
-#      o: "bind"
-#      device: ./etc/cert
