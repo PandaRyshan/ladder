@@ -23,25 +23,31 @@ services:
       - PUID=1000
       - PGID=1000
       - TZ=${TZ}
+      # Request certs from LetsEncrypt
       - URL=${DOMAIN}
 #      - SUBDOMAINS=www,
       - VALIDATION=http
+      - EMAIL=${EMAIL}
+      # CertBot verify plugins and config options
 #      - DNSPLUGIN=cloudflare
 #      - PROPAGATION= #optional
 #      - DUCKDNSTOKEN= #optional
-      - EMAIL=${EMAIL}
 #      - ONLY_SUBDOMAINS=false #optional
 #      - EXTRA_DOMAINS= #optional
 #      - STAGING=false #optional
 #      - MAXMINDDB_LICENSE_KEY= #optional
     volumes:
+#      - ./www:/config/nginx/www
       - ./etc/nginx/nginx.conf:/config/nginx/nginx.conf
       - ./etc/nginx/site-confs:/config/nginx/site-confs
-      - ./www:/config/nginx/www
-      - ./etc/cert:/config/etc/letsencrypt/live
+      # Only mount folder to get priv-fullchain-bundle.pem
+      - ./etc/certs:/config/etc/letsencrypt/live/${DOMAIN}
+      # If you need all certs, please enable this config
+#      - ./etc/letsencrypt:/config/etc/letsencrypt/live
     networks:
       - v2raynet
     ports:
+      # Uses 80 port to update certs
       - 80:80
     restart: unless-stopped
 
@@ -52,10 +58,12 @@ services:
       - TZ=${TZ}
     volumes:
       - ./etc/haproxy:/usr/local/etc/haproxy:ro
-      - ./etc/cert/${DOMAIN}:/etc/ssl/cert
+      - ./etc/certs:/etc/ssl/cert
+#      - ./etc/letsencrypt/live/${DOMAIN}:/etc/ssl/cert
     networks:
       - v2raynet
     ports:
+      # V2Ray port
       - ${PORT}:443
     depends_on:
       - swag
