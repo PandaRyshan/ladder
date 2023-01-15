@@ -12,6 +12,7 @@ services:
       - ./log/v2ray:/var/log/v2ray
     networks:
       - v2raynet
+    command: run
     restart: unless-stopped
 
   swag:
