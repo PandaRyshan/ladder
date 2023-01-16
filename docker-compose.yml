@@ -59,7 +59,7 @@ services:
       - TZ=${TZ}
     volumes:
       - ./etc/haproxy:/usr/local/etc/haproxy:ro
-      - ./etc/certs:/etc/ssl/cert
+      - ./etc/certs:/etc/ssl/certs
 #      - ./etc/letsencrypt/live/${DOMAIN}:/etc/ssl/cert
     networks:
       - v2raynet
