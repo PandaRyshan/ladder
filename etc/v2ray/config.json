@@ -1,12 +1,15 @@
 {
     "log": {
-        "access": "/var/log/v2ray/access.log",
+        // "access": "/var/log/v2ray/access.log",
         "error": "/var/log/v2ray/error.log",
         "loglevel": "warning"
     },
     "dns": {
         "hosts": {
-            "baidu.com": "127.0.0.1"
+            // "baidu.com": "127.0.0.1",
+            // "epdg.epc.mnc260.mcc310.pub.3gppnetwork.org": "208.54.35.163",
+            // "ss.epdg.epc.mnc260.mcc310.pub.3gppnetwork.org": "208.54.35.163",
+            // "ss.epdg.epc.geo.mnc260.mcc310.pub.3gppnetwork.org": "208.54.87.3"
         },
         "servers": [
             "https+local://cloudflare-dns.com/dns-query",
