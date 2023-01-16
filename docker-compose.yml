@@ -41,10 +41,7 @@ services:
 #      - ./www:/config/nginx/www
       - ./etc/nginx/nginx.conf:/config/nginx/nginx.conf
       - ./etc/nginx/site-confs:/config/nginx/site-confs
-      # Only mount folder to get priv-fullchain-bundle.pem
-      - ./etc/certs:/config/etc/letsencrypt/live/${DOMAIN}
-      # If you need all certs, please enable this config
-#      - ./etc/letsencrypt:/config/etc/letsencrypt/live
+      - ./etc/certs:/config/keys/letsencrypt
     networks:
       - v2raynet
     ports:
@@ -60,7 +57,6 @@ services:
     volumes:
       - ./etc/haproxy:/usr/local/etc/haproxy:ro
       - ./etc/certs:/etc/ssl/certs
-#      - ./etc/letsencrypt/live/${DOMAIN}:/etc/ssl/cert
     networks:
       - v2raynet
     ports:
