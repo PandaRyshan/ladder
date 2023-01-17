@@ -62,9 +62,6 @@ services:
     ports:
       # V2Ray port
       - ${PORT}:443
-    depends_on:
-      - swag
-      - v2ray
     restart: unless-stopped
 
 
