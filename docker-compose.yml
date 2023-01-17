@@ -12,7 +12,7 @@ services:
       - ./log/v2ray:/var/log/v2ray
     networks:
       - v2raynet
-    command: run
+    command: run -config /etc/v2ray/config.json
     restart: unless-stopped
 
   swag:
@@ -24,24 +24,13 @@ services:
       - PUID=1000
       - PGID=1000
       - TZ=${TZ}
-      # Request certs from LetsEncrypt
       - URL=${DOMAIN}
-#      - SUBDOMAINS=www,
       - VALIDATION=http
       - EMAIL=${EMAIL}
-      # CertBot verify plugins and config options
-#      - DNSPLUGIN=cloudflare
-#      - PROPAGATION= #optional
-#      - DUCKDNSTOKEN= #optional
-#      - ONLY_SUBDOMAINS=false #optional
-#      - EXTRA_DOMAINS= #optional
-#      - STAGING=false #optional
-#      - MAXMINDDB_LICENSE_KEY= #optional
     volumes:
-#      - ./www:/config/nginx/www
       - ./etc/nginx/nginx.conf:/config/nginx/nginx.conf
       - ./etc/nginx/site-confs:/config/nginx/site-confs
-      - ./etc/certs:/config/keys/letsencrypt
+      - ./etc/certs:/config/etc/letsencrypt/live/${DOMAIN}
     networks:
       - v2raynet
     ports:

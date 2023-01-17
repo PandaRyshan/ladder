@@ -19,7 +19,7 @@
             "208.67.220.220",
             "localhost"
         ],
-        "clientIp": "${HOST}",
+        "clientIp": "",
         "tag": "dns_inbound"
     },
     "routing": {
