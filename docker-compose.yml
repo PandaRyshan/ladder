@@ -7,6 +7,7 @@ services:
     container_name: v2ray
     environment:
       - TZ=${TZ}
+      - SERVER_HOST=${SERVER_HOST}
     volumes:
       - ./etc/v2ray/config.json:/etc/v2ray/config.json
       - ./log/v2ray:/var/log/v2ray
@@ -28,8 +29,7 @@ services:
       - VALIDATION=http
       - EMAIL=${EMAIL}
     volumes:
-      - ./etc/nginx/nginx.conf:/config/nginx/nginx.conf
-      - ./etc/nginx/site-confs:/config/nginx/site-confs
+      - ./etc/nginx:/config/nginx
       - ./etc/certs:/config/etc/letsencrypt/live/${DOMAIN}
     networks:
       - v2raynet
@@ -51,6 +51,15 @@ services:
     ports:
       # V2Ray port
       - ${PORT}:443
+    restart: unless-stopped
+
+  warp:
+    image: e7h4n/cloudflare-warp:latest
+    container_name: warp
+    networks:
+      - v2raynet
+    volumes:
+      - $HOME/.warp:/var/lib/cloudflare-warp:rw
     restart: unless-stopped
 
 

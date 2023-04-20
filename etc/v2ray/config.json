@@ -6,40 +6,31 @@
     },
     "dns": {
         "hosts": {
-            // "baidu.com": "127.0.0.1",
-            // "epdg.epc.mnc260.mcc310.pub.3gppnetwork.org": "208.54.35.163",
-            // "ss.epdg.epc.mnc260.mcc310.pub.3gppnetwork.org": "208.54.35.163",
-            // "ss.epdg.epc.geo.mnc260.mcc310.pub.3gppnetwork.org": "208.54.87.3"
+            "geosite:category-ads-all": "127.0.0.1",
+            "epdg.epc.mnc260.mcc310.pub.3gppnetwork.org": "208.54.35.163",
+            "ss.epdg.epc.mnc260.mcc310.pub.3gppnetwork.org": "208.54.35.163",
+            "ss.epdg.epc.geo.mnc260.mcc310.pub.3gppnetwork.org": "208.54.87.3"
         },
         "servers": [
             "https+local://cloudflare-dns.com/dns-query",
+            "https+local://dns.google/dns-query",
             "1.1.1.1",
-            "8.8.8.8",
-            "8.8.4.4",
-            "208.67.220.220",
-            "localhost"
+            "8.8.8.8"
         ],
-        "clientIp": "",
+        "clientIp": "<your-host-ip>",
         "tag": "dns_inbound"
     },
     "routing": {
-        "domainStrategy": "IPOnDemand",
+        "domainStrategy": "AsIs",
         "rules": [
             {
                 "type": "field",
+                "outboundTag": "cf-warp",
                 "domain": [
-                    "geosite:cn"
-                ],
-                "ip": [
-                    "geoip:private",
-                    "0.0.0.0/8",
-                    "10.0.0.0/8",
-                    "fc00::/7",
-                    "fe80::/10",
-                    "geoip:cn"
-                ],
-                "network": "tcp",
-                "outboundTag": "direct"
+                    "domain:openai.com",
+                    "domain:netflix.com",
+                    "domain:bing.com"
+                ]
             },
             {
                 "type": "field",
@@ -70,40 +61,6 @@
                     "domain:ninecommentaries.com",
                     "domain:shenyun.com"
                 ]
-            },
-            {
-                "type": "field",
-                "outboundTag": "blocked",
-                "ip": [
-                    "0.0.0.0/8",
-                    "10.0.0.0/8",
-                    "100.64.0.0/10",
-                    "127.0.0.0/8",
-                    "169.254.0.0/16",
-                    "172.16.0.0/12",
-                    "192.0.0.0/24",
-                    "192.168.0.0/16",
-                    "198.18.0.0/15",
-                    "198.51.100.0/24",
-                    "203.0.113.0/24",
-                    "224.0.0.0/24",
-                    "240.0.0.0/4",
-                    "255.255.255.255/32",
-                    "::1/128",
-                    "fc00::/7",
-                    "fe80::/10",
-                    "fd00::/8",
-                    "ff01::/16",
-                    "ff02::/16",
-                    "ff03::/16",
-                    "ff04::/16",
-                    "ff05::/16"
-                ]
-            },
-            {
-              "type": "field",
-              "inboundTag": ["tg-in"],
-              "outboundTag": "tg-out"
             },
             {
               "type": "field",
@@ -153,6 +110,31 @@
     "outbounds": [
         {
             "protocol": "freedom"
+        },
+        {
+            "protocol": "blackhole",
+            "tag": "blocked"
+        },
+        {
+            "protocol": "dns",
+            "tag": "dns_outbound",
+            "settings": {
+                "network": "tcp",
+                "address": "1.1.1.1",
+                "port": 53
+            }
+        },
+        {
+            "protocol": "socks",
+            "tag": "cf-warp",
+            "settings": {
+                "servers": [
+                    {
+                        "address": "warp",
+                        "port": 40001
+                    }
+                ]
+            }
         }
     ],
     "transport": {
