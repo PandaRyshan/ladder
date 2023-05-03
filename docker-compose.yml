@@ -7,7 +7,7 @@ services:
     container_name: v2ray
     volumes:
       - ./config/v2ray/config.json:/etc/v2ray/config.json
-      - ./geodata:/usr/share/v2ray
+      - ./config/geodata:/usr/share/v2ray
       - ./log/v2ray:/var/log/v2ray
     networks:
       - default
@@ -29,7 +29,7 @@ services:
     volumes:
       - ./config/nginx:/config/nginx
       - ./config/certs:/config/etc/letsencrypt
-      - ./www:/config/www
+      - ./config/www:/config/www
       - ./log/nginx:/config/log/nginx
     networks:
       - default
