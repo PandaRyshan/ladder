@@ -5,7 +5,7 @@
 sudo timedatectl set-timezone ${TZ}
 
 # Replace <your-host-ip> with your IP address
-sed -i "s/<your-host-ip>/$(curl -s https://ifconfig.me)/g" ./etc/v2ray/config.json
+sed -i "s/<your-host-ip>/$(curl -s https://ifconfig.me)/g" ./config/v2ray/config.json
 
 # Download geoip.dat and geosite.dat to ./geodata directory
 mkdir -p ./geodata
