@@ -3,21 +3,19 @@ version: "3.8"
 services:
 
   v2ray:
-    image: "${V2RAY_TAG}"
+    image: v2fly/v2fly-core:latest
     container_name: v2ray
-    environment:
-      - TZ=${TZ}
-      - SERVER_HOST=${SERVER_HOST}
     volumes:
-      - ./etc/v2ray/config.json:/etc/v2ray/config.json
+      - ./config/v2ray/config.json:/etc/v2ray/config.json
+      - ./geodata:/usr/share/v2ray
       - ./log/v2ray:/var/log/v2ray
     networks:
-      - v2raynet
+      - default
     command: run -config /etc/v2ray/config.json
     restart: unless-stopped
 
   swag:
-    image: "${NGINX_TAG}"
+    image: linuxserver/swag:latest
     container_name: swag
     cap_add:
       - NET_ADMIN
@@ -29,41 +27,40 @@ services:
       - VALIDATION=http
       - EMAIL=${EMAIL}
     volumes:
-      - ./etc/nginx:/config/nginx
-      - ./etc/certs:/config/etc/letsencrypt/live/${DOMAIN}
+      - ./config/nginx:/config/nginx
+      - ./config/certs:/config/etc/letsencrypt
+      - ./www:/config/www
+      - ./log/nginx:/config/log/nginx
     networks:
-      - v2raynet
+      - default
     ports:
-      # Uses 80 port to update certs
+      # Uses 80 port to update certs first, otherwise haproxy cannot works
       - 80:80
     restart: unless-stopped
 
   haproxy:
-    image: "${HAPROXY_TAG}"
+    image: haproxy:latest
     container_name: haproxy
-    environment:
-      - TZ=${TZ}
     volumes:
-      - ./etc/haproxy:/usr/local/etc/haproxy:ro
-      - ./etc/certs:/etc/ssl/certs
+      - ./config/haproxy:/usr/local/etc/haproxy:ro
+      - ./config/certs/live/${DOMAIN}:/etc/ssl/certs
     networks:
-      - v2raynet
+      - default
     ports:
-      # V2Ray port
-      - ${PORT}:443
+      - 443:443
     restart: unless-stopped
 
   warp:
     image: e7h4n/cloudflare-warp:latest
     container_name: warp
     networks:
-      - v2raynet
+      - default
     volumes:
-      - $HOME/.warp:/var/lib/cloudflare-warp:rw
+      - ./config/warp:/var/lib/cloudflare-warp:rw
     restart: unless-stopped
 
 
 networks:
 
-  v2raynet:
+  default:
     driver: bridge

@@ -1,0 +1,166 @@
+{
+    "log": {
+        // "access": "/var/log/v2ray/access.log",
+        "error": "/var/log/v2ray/error.log",
+        "loglevel": "warning"
+    },
+    "dns": {
+        "hosts": {
+            "geosite:category-ads-all": "127.0.0.1",
+            "epdg.epc.mnc260.mcc310.pub.3gppnetwork.org": "208.54.35.163",
+            "ss.epdg.epc.mnc260.mcc310.pub.3gppnetwork.org": "208.54.35.163",
+            "ss.epdg.epc.geo.mnc260.mcc310.pub.3gppnetwork.org": "208.54.87.3"
+        },
+        "servers": [
+            "https+local://cloudflare-dns.com/dns-query",
+            "https+local://dns.google/dns-query",
+            "1.1.1.1",
+            "8.8.8.8"
+        ],
+        "clientIp": "<your-host-ip>"
+        // ,"tag": "dns-in"
+    },
+    "routing": {
+        "domainStrategy": "AsIs",
+        "rules": [
+            {
+                "type": "field",
+                "outboundTag": "cf-warp",
+                "domain": [
+                    "domain:openai.com",
+                    "domain:netflix.com",
+                    "domain:bing.com"
+                ]
+            },
+            {
+                "type": "field",
+                "outboundTag": "blocked",
+                "domain": [
+                    // "domain:example.com"
+                ]
+            },
+            {
+              "type": "field",
+              "protocol": [
+                  "bittorrent"
+              ],
+              "outboundTag": "blocked"
+            }
+        ]
+    },
+    "inbounds": [
+        {
+            "protocol": "vmess",
+            "listen": "0.0.0.0",
+            "port": 10010,
+            "settings": {
+                "clients": [
+                    {
+                        "id": "f2435e5c-9ad9-4367-836a-8341117d0a5f"
+                    }
+                ]
+            },
+            "streamSettings": {
+                "network": "tcp"
+            }
+        },
+        {
+            "protocol": "vmess",
+            "listen": "0.0.0.0",
+            "port": 10086,
+            "settings": {
+                "clients": [
+                    {
+                        "id": "f2435e5c-9ad9-4367-836a-8341117d0a5f"
+                    }
+                ]
+            },
+            "streamSettings": {
+                "network": "h2",
+                "security": "none",
+                "httpSettings": {
+                    "host": ["<your-domain>"],
+                    "path": "/api/v1/users"
+                }
+            }
+        },
+        {
+            "protocol": "vmess",
+            "listen": "0.0.0.0",
+            "port": 10000,
+            "settings": {
+                "clients": [
+                    {
+                        "id": "f2435e5c-9ad9-4367-836a-8341117d0a5f"
+                    }
+                ]
+            },
+            "streamSettings": {
+                "network": "quic",
+                "security": "none",
+                "quicSettings": {
+                    "security": "chacha20-poly1305",
+                    "key": "",
+                    "header": {
+                        "type": "none"
+                    }
+                }
+            }
+        },
+        {
+            "tag": "dns-in",
+            "protocol": "dokodemo-door",
+            "port": 53,
+            "settings": {
+                "address": "1.1.1.1",
+                "port": 53,
+                "network": "tcp,udp",
+                "userLevel": 1
+            }
+        }
+    ],
+    "outbounds": [
+        {
+            "tag": "dns-out",
+            "protocol": "dns"
+        },
+        {
+            "protocol": "freedom"
+        },
+        {
+            "tag": "blocked",
+            "protocol": "blackhole"
+        },
+        {
+            "tag": "cf-warp",
+            "protocol": "socks",
+            "settings": {
+                "servers": [
+                    {
+                        "address": "warp",
+                        "port": 40001
+                    }
+                ]
+            }
+        }
+    ],
+    "policy": {
+        "system": {
+            "statsInboundUplink": false,
+            "statsInboundDownlink": false,
+            "statsOutboundUplink": false,
+            "statsOutboundDownlink": false
+        },
+        "levels": {
+            "0": {
+                "handshake": 4,
+                "connIdle": 300,
+                "uplinkOnly": 2,
+                "downlinkOnly": 5,
+                "statsUserUplink": false,
+                "statsUserDownlink": false,
+                "bufferSize": 10240
+            }
+        }
+    }
+}
