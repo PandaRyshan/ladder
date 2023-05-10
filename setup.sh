@@ -78,7 +78,7 @@ function prepare_os_env {
         sudo apt-get update
         sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin wget git
         apt update && apt install -y wget git docker-ce docker-compose-plugin
-    if [[ "${OS,,}" == *"debian"* ]]; then
+    elif [[ "${OS,,}" == *"debian"* ]]; then
         sudo apt-get remove docker docker-engine docker.io containerd runc
         sudo apt-get update
         sudo apt-get install ca-certificates curl gnugp
@@ -127,6 +127,7 @@ function prepare_os_env {
     else
         echo "Unsupported operating system"
         exit 1
+    fi
 }
 
 function prepare_config {
