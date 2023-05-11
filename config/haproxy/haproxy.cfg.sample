@@ -30,11 +30,12 @@ frontend tls-in
     # redirect scheme https if !{ ssl_fc }
     bind :443 tfo ssl crt /etc/ssl/certs/priv-fullchain-bundle.pem
 
+    # dealy 5s to wait fully client request, and allow tls request only
     tcp-request inspect-delay 5s
+    tcp-request content accept if { req_ssl_hello_type 1 }
 
     # only accept specific domains, see:
     # https://docs.haproxy.org/dev/configuration.html#ssl_fc_sni
-    tcp-request content accept if { req_ssl_hello_type 1 }
     tcp-request content accept if { ssl_fc_sni -i <your-domain> }
     tcp-request content reject if !{ ssl_fc_sni -i <your-domain> }
 
@@ -47,10 +48,10 @@ backend http_backend
     # see Pre-defined ACLs: https://docs.haproxy.org/dev/configuration.html#7.4
     use-server v2ray if METH_PUT
     use-server swag if METH_GET
-    use-server ocserv if METH_POST
+    # use-server ocserv if METH_POST
 
     server v2ray v2ray:10086 proto h2
-    server swag swag:80 alpn h2 ssl verify none
+    server swag swag:443 alpn h2 ssl verify none
     # server ocserv ocserv:443 send-proxy-v2 ssl verify none
   
 backend tcp_backend
