@@ -1,2 +1,4 @@
 # user's real environment variables
 .env
+config.json
+haproxy.cfg
