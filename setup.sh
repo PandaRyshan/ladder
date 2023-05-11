@@ -165,7 +165,7 @@ function install {
 	input_info
 	prepare_os_env
 	prepare_config
-
+	start_containers
 }
 
 function update {
