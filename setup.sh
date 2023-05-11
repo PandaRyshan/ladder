@@ -61,11 +61,11 @@ function check_os_release {
 
 function prepare_os_env {
 	if [[ "${OS,,}" == *"ubuntu"* ]]; then
-		sudo apt-get remove docker docker-engine docker.io containerd runc
+		sudo apt-get remove -y docker docker-engine docker.io containerd runc
 		sudo apt-get update
-		sudo apt-get install ca-certificates curl gnugp
+		sudo apt-get install -y ca-certificates curl gnupg
 		sudo install -m 0755 -d /etc/apt/keyrings
-		curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+		yes | curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 		sudo chmod a+r /etc/apt/keyrings/docker.gpg
 		echo \
   "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
@@ -77,7 +77,7 @@ function prepare_os_env {
 	elif [[ "${OS,,}" == *"debian"* ]]; then
 		sudo apt-get remove docker docker-engine docker.io containerd runc
 		sudo apt-get update
-		sudo apt-get install ca-certificates curl gnugp
+		sudo apt-get install ca-certificates curl gnupg
 		sudo install -m 0755 -d /etc/apt/keyrings
 		curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 		sudo chmod a+r /etc/apt/keyrings/docker.gpg
@@ -130,6 +130,7 @@ function prepare_config {
 	git clone https://github.com/PandaRyshan/v2ray.git
 	cd v2ray
     mv ./config/v2ray/config.json.sample ./config/v2ray/config.json
+	mv ./config/nginx/site-confs/default.conf.sample ./config/nginx/site-confs/default.conf
     mv ./config/haproxy/haproxy.cfg.sample ./config/haproxy/haproxy.cfg
 	cat > .env <<- EOENV
 		TZ=Asia/Shanghai
