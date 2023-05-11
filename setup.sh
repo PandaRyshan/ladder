@@ -129,9 +129,9 @@ function prepare_os_env {
 function prepare_config {
 	git clone https://github.com/PandaRyshan/v2ray.git
 	cd v2ray
-    mv ./config/v2ray/config.json.sample ./config/v2ray/config.json
-	mv ./config/nginx/site-confs/default.conf.sample ./config/nginx/site-confs/default.conf
-    mv ./config/haproxy/haproxy.cfg.sample ./config/haproxy/haproxy.cfg
+    cp ./config/v2ray/config.json.sample ./config/v2ray/config.json
+	cp ./config/nginx/site-confs/default.conf.sample ./config/nginx/site-confs/default.conf
+    cp ./config/haproxy/haproxy.cfg.sample ./config/haproxy/haproxy.cfg
 	cat > .env <<- EOENV
 		TZ=Asia/Shanghai
 		DOMAIN=${DOMAIN}
