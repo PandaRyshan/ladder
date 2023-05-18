@@ -165,8 +165,10 @@ function prepare_os_env {
 }
 
 function prepare_config {
-	git clone https://github.com/PandaRyshan/v2ray.git
-	cd v2ray
+	if [ ! -f "docker-compose" ]; then
+		git clone https://github.com/PandaRyshan/v2ray.git
+		cd v2ray
+	fi
 	cat > .env <<- EOENV
 		TZ=Asia/Shanghai
 		EMAIL=${EMAIL}
@@ -176,10 +178,10 @@ function prepare_config {
 		USERNAME=${USERNAME}
 		PASSWORD=${PASSWORD}
 	EOENV
-    cp ./config/v2ray/config.json.sample ./config/v2ray/config.json
-	cp ./config/nginx/site-confs/default.conf.sample ./config/nginx/site-confs/default.conf
-    cp ./config/haproxy/haproxy.cfg.sample ./config/haproxy/haproxy.cfg
-	cp ./config/ocserv/ocserv.conf.sample ./config/ocserv/ocserv.conf
+	cp -f ./config/v2ray/config.json.sample ./config/v2ray/config.json
+	cp -f ./config/nginx/site-confs/default.conf.sample ./config/nginx/site-confs/default.conf
+	cp -f ./config/haproxy/haproxy.cfg.sample ./config/haproxy/haproxy.cfg
+	cp -f ./config/ocserv/ocserv.conf.sample ./config/ocserv/ocserv.conf
 
 	# set up timezone
 	ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
@@ -187,10 +189,8 @@ function prepare_config {
 
 	sed -i "s/<your-host-ip>/$(curl -s https://ifconfig.me)/g" ./config/v2ray/config.json
 	sed -i "s/<your-v2ray-domain>/${V2RAY_SUB}.${DOMAIN}/g" ./config/v2ray/config.json
-
 	sed -i "s/<your-vpn-domain>/${OCSERV_SUB}.${DOMAIN}/g" ./config/haproxy/haproxy.cfg
 	sed -i "s/<your-v2ray-domain>/${V2RAY_SUB}.${DOMAIN}/g" ./config/haproxy/haproxy.cfg
-
 	sed -i "s/<your-vpn-domain>/${OCSERV_SUB}.${DOMAIN}/g" ./config/ocserv/ocserv.conf
 
 	# download latest geoip.dat and geosite.dat to ./geodata directory
@@ -203,7 +203,7 @@ function start_containers {
 	docker compose up -d
 }
 
-function install {
+function install_all {
 	check_os_release
 	input_info
 	prepare_os_env
