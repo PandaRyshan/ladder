@@ -54,9 +54,9 @@ function install_menu {
 # Receive user input and bind to environment variables
 function input_info {
 	echo ""
+	read -p "邮箱 Email: " email
 	read -p "域名 Domain: " domain
 	read -p "V2Ray子域 Subdomain: " v2ray_sub
-	read -p "邮箱 Email: " email
 	if [ "$option" == "2" ] || [ "$option" == "3" ]; then
 		read -p "Ocserv子域 Subdomain: " ocserv_sub
 		read -p "用户名 Username: " username

@@ -30,7 +30,7 @@ services:
       - EMAIL=${EMAIL}
     volumes:
       - ./config/nginx:/config/nginx
-      - ./config/certs:/config/etc/letsencrypt
+      - ./config/certs:/etc/letsencrypt
       - ./config/www:/config/www
     networks:
       - default
@@ -61,7 +61,7 @@ services:
     restart: unless-stopped
 
   ocserv:
-    image: quay.io/aminvakil/ocserv:latest
+    image: duckduckio/ocserv:latest
     container_name: ocserv
     volumes:
       - ./config/ocserv:/etc/ocserv
