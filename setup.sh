@@ -165,7 +165,7 @@ function prepare_os_env {
 }
 
 function prepare_config {
-	if [ ! -f "./docker-compose" ]; then
+	if [ ! -f "./docker-compose.yml" ]; then
 		git clone https://github.com/PandaRyshan/ladder.git
 		cd ladder
 	fi
