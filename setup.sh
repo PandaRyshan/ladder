@@ -189,9 +189,13 @@ function prepare_config {
 
 	sed -i "s/<your-host-ip>/$(curl -s https://ifconfig.me)/g" ./config/v2ray/config.json
 	sed -i "s/<your-v2ray-domain>/${V2RAY_SUB}.${DOMAIN}/g" ./config/v2ray/config.json
+
 	sed -i "s/<your-ocserv-domain>/${OCSERV_SUB}.${DOMAIN}/g" ./config/haproxy/haproxy.cfg
 	sed -i "s/<your-v2ray-domain>/${V2RAY_SUB}.${DOMAIN}/g" ./config/haproxy/haproxy.cfg
-	sed -i "s/<your-ocserv-domain>/${OCSERV_SUB}.${DOMAIN}/g" ./config/ocserv/ocserv.conf
+
+	# after certs is generated, there's only one group of certs, all subdomains are included
+	# and the certs directory name is the first subdomain
+	sed -i "s/<your-ocserv-domain>/${V2RAY_SUB}.${DOMAIN}/g" ./config/ocserv/ocserv.conf
 
 	# download latest geoip.dat and geosite.dat to ./geodata directory
 	mkdir -p ./config/geodata

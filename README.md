@@ -32,5 +32,10 @@ For deploy v2ray proxy easier.
 * [x] add script to download expanded geoip and geosite data
 * [x] replace host and domain into config
 * [x] fix ocserv connection via haproxy
+* [ ] check if docker service exists
 * [ ] use script to deploy automatically
-* [ ] check if server exists
+  * [x] deploy v2ray and ocserv
+  * [ ] deploy v2ray only
+  * [ ] deploy ocserv only
+  * [ ] upgrade containers
+  * [ ] remove containers
