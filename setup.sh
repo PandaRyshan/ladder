@@ -165,9 +165,9 @@ function prepare_os_env {
 }
 
 function prepare_config {
-	if [ ! -f "docker-compose" ]; then
-		git clone https://github.com/PandaRyshan/v2ray.git
-		cd v2ray
+	if [ ! -f "./docker-compose" ]; then
+		git clone https://github.com/PandaRyshan/ladder.git
+		cd ladder
 	fi
 	cat > .env <<- EOENV
 		TZ=Asia/Shanghai
@@ -200,10 +200,12 @@ function prepare_config {
 }
 
 function start_containers {
+	cd_script_dir
 	docker compose up -d
 }
 
 function install_all {
+	cd_script_dir
 	check_os_release
 	input_info
 	prepare_os_env
@@ -212,12 +214,14 @@ function install_all {
 }
 
 function upgrade {
+	cd_script_dir
 	git stash && git fetch && git pull
 	docker pull v2fly/v2fly-core
 	docker compose up -d v2ray
 }
 
 function remove {
+	cd_script_dir
 	docker compose down
 }
 
@@ -231,8 +235,12 @@ function help {
 	echo "  -h, --help		display this help and exit"
 }
 
+function cd_script_dir {
+	cd "$(dirname "$0")"
+}
 
-cd "$(dirname "$0")"
+
+cd_script_dir
 
 while [[ $# -gt 0 ]]; do
 	case $1 in
