@@ -60,5 +60,5 @@ ping-leases = false
 
 use-occtl = true
 log-level = 1
-# server-cert = /etc/letsencrypt/live/<your-ocserv-domain>/fullchain.pem
-# server-key = /etc/letsencrypt/live/<your-ocserv-domain>/privkey.pem
+server-cert = /etc/letsencrypt/live/<your-ocserv-domain>/fullchain.pem
+server-key = /etc/letsencrypt/live/<your-ocserv-domain>/privkey.pem
