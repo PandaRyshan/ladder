@@ -30,7 +30,7 @@ frontend tls-in
     tcp-request inspect-delay 5s
     tcp-request content accept if { req_ssl_hello_type 1 }
 
-    acl is_vpn req.ssl_sni -i <your-vpn-domain>
+    acl is_vpn req.ssl_sni -i <your-ocserv-domain>
     acl is_v2ray req.ssl_sni -i <your-v2ray-domain>
     acl is_http req.ssl_alpn -i h2 or http/1.1
 
