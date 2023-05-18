@@ -65,8 +65,8 @@
                 "security": "tls",
                 "tlsSettings": {
                     "certificates": [{
-                        "certificateFile": "/etc/letsencrypt/<your-v2ray-domain>/fullchain.pem",
-                        "keyFile": "/etc/letsencrypt/<your-v2ray-domain>/privkey.pem"
+                        "certificateFile": "/etc/letsencrypt/live/<your-v2ray-domain>/fullchain.pem",
+                        "keyFile": "/etc/letsencrypt/live/<your-v2ray-domain>/privkey.pem"
                     }]
                 }
             }
@@ -91,8 +91,8 @@
                 "security": "tls",
                 "tlsSettings": {
                     "certificates": [{
-                        "certificateFile": "/etc/letsencrypt/<your-v2ray-domain>/fullchain.pem",
-                        "keyFile": "/etc/letsencrypt/<your-v2ray-domain>/privkey.pem"
+                        "certificateFile": "/etc/letsencrypt/live/<your-v2ray-domain>/fullchain.pem",
+                        "keyFile": "/etc/letsencrypt/live/<your-v2ray-domain>/privkey.pem"
                     }]
                 }
             }
