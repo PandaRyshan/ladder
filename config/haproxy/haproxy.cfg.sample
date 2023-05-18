@@ -1,17 +1,17 @@
 global
     log stdout format raw local0 warning
-    # for monitoring
+    # if you need to monitoring, uncomment next line
     # stats socket /run/haproxy/admin.sock mode 660 level admin expose-fd listeners
     stats timeout 30s
     daemon
-    ca-base /etc/ssl/certs
-    crt-base /etc/ssl/certs
 
     # set AEAD ciphers default
     ssl-default-bind-ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384
     ssl-default-bind-ciphersuites TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256
+
     # disable SSLv3, TLSv1.0, TLSv1.1
     ssl-default-bind-options no-sslv3 no-tlsv10 no-tlsv11
+
     # set DH length
     tune.ssl.default-dh-param 2048
 
@@ -25,34 +25,27 @@ defaults
     timeout server 300s
 
 frontend tls-in
-    # log-format "sni(%[ssl_fc_sni]) uri(%[capture.req.uri]) method(%[capture.req.method])" # for debug
-    # bind :80
-    # redirect scheme https if !{ ssl_fc }
-    bind :443 tfo ssl crt /etc/ssl/certs/priv-fullchain-bundle.pem
+    bind :443
 
-    # dealy 5s to wait fully client request, and allow tls request only
     tcp-request inspect-delay 5s
     tcp-request content accept if { req_ssl_hello_type 1 }
 
-    # only accept specific domains, see:
-    # https://docs.haproxy.org/dev/configuration.html#ssl_fc_sni
-    tcp-request content accept if { ssl_fc_sni -i <your-domain> }
-    tcp-request content reject if !{ ssl_fc_sni -i <your-domain> }
+    acl is_vpn req.ssl_sni -i <your-vpn-domain>
+    acl is_v2ray req.ssl_sni -i <your-v2ray-domain>
+    acl is_http req.ssl_alpn -i h2 or http/1.1
 
-    use_backend http_backend if HTTP
-    default_backend tcp_backend
+    use_backend ocserv if is_vpn
+    use_backend nginx if is_http
+    use_backend v2ray if is_v2ray
 
-backend http_backend
-    mode http # option http-keep-alive is default on
+backend nginx
+    server nginx swag:443 alpn h2
 
-    # see Pre-defined ACLs: https://docs.haproxy.org/dev/configuration.html#7.4
-    use-server v2ray if METH_PUT
-    use-server swag if METH_GET
-    # use-server ocserv if METH_POST
-
-    server v2ray v2ray:10086 proto h2
-    server swag swag:443 alpn h2 ssl verify none
-    # server ocserv ocserv:443 send-proxy-v2 ssl verify none
-  
-backend tcp_backend
+backend v2ray
     server v2ray v2ray:10010
+
+backend v2ray_http
+    server v2ray v2ray:10086 alpn h2
+
+backend ocserv
+    server ocserv ocserv:443 send-proxy-v2

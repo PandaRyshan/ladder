@@ -1,0 +1,64 @@
+# authentication via linux user
+# auth = pam
+
+# authentication via passwd file
+auth = "plain[passwd=/etc/ocserv/ocpasswd]"
+
+tcp-port = 443
+udp-port = 443
+
+run-as-user = nobody
+run-as-group = daemon
+socket-file = /var/run/ocserv-socket
+
+max-clients = 100
+max-same-clients = 0
+try-mtu-discovery = true
+
+# disable ssl3 tls1.0 tls1.1
+tls-priorities = "NORMAL:%SERVER_PRECEDENCE:%COMPAT:-RSA:-VERS-SSL3.0:-VERS-TLS1.0:-VERS-TLS1.1"
+
+device = vpns
+
+ipv4-network = 192.168.100.0/24
+ipv4-netmask = 255.255.255.0
+
+route = default
+route = 192.168.0.0/24
+no-route = 10.0.0.0/8
+no-route = 100.64.0.0/10
+no-route = 169.254.0.0/16
+no-route = 192.0.0.0/24
+no-route = 192.168.0.0/16
+no-route = 224.0.0.0/24
+no-route = 240.0.0.0/4
+no-route = 172.16.0.0/12
+no-route = 127.0.0.0/8
+no-route = 255.255.255.255/32
+
+# tunnel all DNS queries via the VPN
+tunnel-all-dns = true
+
+dns = 1.1.1.1
+dns = 8.8.8.8
+
+# config file must as same as username or groupname
+config-per-user = /etc/ocserv/config-per-user/
+config-per-group = /etc/ocserv/config-per-group/
+predictable-ips = true
+
+# let ocserv to obtain information on the incoming session from loadbalancer
+keepalive = 300
+
+# uncomment if you use haproxy
+listen-proxy-proto = true
+
+ping-leases = false
+# match-tls-dtls-ciphers = true
+# cisco-client-compat = true
+# dtls-legacy = true
+
+use-occtl = true
+log-level = 1
+# server-cert = /etc/letsencrypt/live/<your-ocserv-domain>/fullchain.pem
+# server-key = /etc/letsencrypt/live/<your-ocserv-domain>/privkey.pem

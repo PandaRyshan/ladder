@@ -31,5 +31,6 @@ For deploy v2ray proxy easier.
 
 * [x] add script to download expanded geoip and geosite data
 * [x] replace host and domain into config
-* [ ] fix ocserv connection via haproxy
+* [x] fix ocserv connection via haproxy
 * [ ] use script to deploy automatically
+* [ ] check if server exists

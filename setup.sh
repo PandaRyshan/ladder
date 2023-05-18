@@ -1,19 +1,53 @@
 #!/bin/bash
 
 # Menu
-function show_menu {
+function top_menu {
+	echo ""
+	echo "1. 部署 Deploy"
+	echo "2. 升级 Upgrade"
+	echo "3. 卸载 Uninstall"
+	echo "0. 退出 Exit"
+	echo ""
+	read -p "请输入数字 Please enter a number: " option
+
+	if [ "$option" == "0" ]; then
+		exit 0
+	elif [ "$option" == "1" ]; then
+		install_menu
+	elif [ "$option" == "2" ]; then
+		upgrade
+	elif [ "$option" == "3" ]; then
+		remove
+	else
+		invalid_input
+		install_menu
+	fi
+}
+
+function install_menu {
 	echo ""
 	echo "部署选项 Deployment Option:"
 	echo ""
 	echo "1. 部署 V2Ray"
 	echo "2. 部署 OpenConnect"
 	echo "3. 全部 Deploy All"
+	echo "0. 返回 Return"
 	echo ""
 	read -p "请输入数字 Please enter a number: " option
-	if [ "$option" != "1" ] && [ "$option" != "2" ] && [ "$option" != "3" ]; then
+
+	if [ "$option" == "0" ]; then
+		top_menu
+	elif [ "$option" == "1" ]; then
+		install_v2ray
+	elif [ "$option" == "2" ]; then
+		install_ocserv
+	elif [ "$option" == "3" ]; then
+		install_all
+	else
 		invalid_input
-		show_menu
+		install_menu
 	fi
+
 	return $option
 }
 
@@ -21,19 +55,23 @@ function show_menu {
 function input_info {
 	echo ""
 	read -p "域名 Domain: " domain
+	read -p "V2Ray子域 Subdomain: " v2ray_sub
 	read -p "邮箱 Email: " email
-	if [ "$option" == "2" ] || [ "$option" == "3" ]; then
+	elif [ "$option" == "2" ] || [ "$option" == "3" ]; then
+		read -p "Ocserv子域 Subdomain: " ocserv_sub
 		read -p "用户名 Username: " username
 		read -p "密码 Password: " password
 	fi
 	echo ""
-	read -p "请确认 (Y/N):" confirm
+	read -p "请确认 (y/n):" confirm
 	# Convert to lowercase
 	confirm=$(echo $confirm | tr '[:upper:]' '[:lower:]')
 	if [ "$confirm" == "y" ]; then
 		export DOMAIN="$domain"
 		export EMAIL="$email"
-		if [ "$option" == "1" ] || [ "$option" == "3" ]; then
+		export V2RAY_SUB="$v2ray_sub"
+		if [ "$option" == "2" ] || [ "$option" == "3" ]; then
+			export OCSERV_SUB="$ocserv_sub"
 			export USERNAME="$username"
 			export PASSWORD="$password"
 		fi
@@ -129,31 +167,34 @@ function prepare_os_env {
 function prepare_config {
 	git clone https://github.com/PandaRyshan/v2ray.git
 	cd v2ray
-    cp ./config/v2ray/config.json.sample ./config/v2ray/config.json
-	cp ./config/nginx/site-confs/default.conf.sample ./config/nginx/site-confs/default.conf
-    cp ./config/haproxy/haproxy.cfg.sample ./config/haproxy/haproxy.cfg
 	cat > .env <<- EOENV
 		TZ=Asia/Shanghai
-		DOMAIN=${DOMAIN}
 		EMAIL=${EMAIL}
+		DOMAIN=${DOMAIN}
+		V2RAY_SUB=${V2RAY_SUB}
+		OCSERV_SUB=${OCSERV_SUB}
 		USERNAME=${USERNAME}
 		PASSWORD=${PASSWORD}
 	EOENV
+    cp ./config/v2ray/config.json.sample ./config/v2ray/config.json
+	cp ./config/nginx/site-confs/default.conf.sample ./config/nginx/site-confs/default.conf
+    cp ./config/haproxy/haproxy.cfg.sample ./config/haproxy/haproxy.cfg
+	cp ./config/ocserv/ocserv.conf.sample ./config/ocserv/ocserv.conf
 
 	# set up timezone
 	ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
 	sudo timedatectl set-timezone Asia/Shanghai
 
-	# replace <your-host-ip> with your IP address
 	sed -i "s/<your-host-ip>/$(curl -s https://ifconfig.me)/g" ./config/v2ray/config.json
+	sed -i "s/<your-v2ray-domain>/${V2RAY_SUB}.${DOMAIN}/g" ./config/v2ray/config.json
 
-	# download geoip.dat and geosite.dat to ./geodata directory
-	mkdir -p ./geodata
-	wget -P ./geodata https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat
-	wget -P ./geodata https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat
+	sed -i "s/<your-vpn-domain>/${OCSERV_SUB}.${DOMAIN}/g" ./config/haproxy/haproxy.cfg
+	sed -i "s/<your-v2ray-domain>/${V2RAY_SUB}.${DOMAIN}/g" ./config/haproxy/haproxy.cfg
 
-	# replace <your-domain> with your domain
-	sed -i "s/<your-domain>/${DOMAIN}/g" ./config/haproxy/haproxy.cfg
+	# download latest geoip.dat and geosite.dat to ./geodata directory
+	mkdir -p ./config/geodata
+	wget -P ./config/geodata https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat
+	wget -P ./config/geodata https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat
 }
 
 function start_containers {
@@ -161,7 +202,6 @@ function start_containers {
 }
 
 function install {
-	show_menu
 	check_os_release
 	input_info
 	prepare_os_env
@@ -169,7 +209,7 @@ function install {
 	start_containers
 }
 
-function update {
+function upgrade {
 	git stash && git fetch && git pull
 	docker pull v2fly/v2fly-core
 	docker compose up -d v2ray
@@ -184,7 +224,7 @@ function help {
 	echo "Setup V2Ray and OpenConnect on Linux"
 	echo ""
 	echo "  -i, --install	install V2Ray and OpenConnect"
-	echo "  -u, --update	update V2Ray and OpenConnect"
+	echo "  -u, --upgrade	upgrade V2Ray and OpenConnect"
 	echo "  -r, --remove	remove V2Ray and OpenConnect"
 	echo "  -h, --help		display this help and exit"
 }
@@ -195,10 +235,10 @@ cd "$(dirname "$0")"
 while [[ $# -gt 0 ]]; do
 	case $1 in
 		-i|--install)
-			install
+			install_menu
 			;;
-		-u|--update)
-			update
+		-u|--upgrade)
+			upgrade
 			;;
 		-r|--remove|--uninstall)
 			remove
@@ -214,4 +254,4 @@ while [[ $# -gt 0 ]]; do
 	exit 0
 done
 
-install
+top_menu

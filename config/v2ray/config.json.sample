@@ -61,7 +61,14 @@
                 ]
             },
             "streamSettings": {
-                "network": "tcp"
+                "network": "tcp",
+                "security": "tls",
+                "tlsSettings": {
+                    "certificates": [{
+                        "certificateFile": "/etc/letsencrypt/<your-v2ray-domain>/fullchain.pem",
+                        "keyFile": "/etc/letsencrypt/<your-v2ray-domain>/privkey.pem"
+                    }]
+                }
             }
         },
         {
@@ -77,10 +84,16 @@
             },
             "streamSettings": {
                 "network": "h2",
-                "security": "none",
                 "httpSettings": {
-                    "host": ["<your-domain>"],
+                    "host": ["<your-v2ray-domain>"],
                     "path": "/api/v1/users"
+                },
+                "security": "tls",
+                "tlsSettings": {
+                    "certificates": [{
+                        "certificateFile": "/etc/letsencrypt/<your-v2ray-domain>/fullchain.pem",
+                        "keyFile": "/etc/letsencrypt/<your-v2ray-domain>/privkey.pem"
+                    }]
                 }
             }
         },
@@ -120,7 +133,7 @@
         }
     ],
     "outbounds": [
-        // first is the default
+        // if no tag, first is the default
         {
             "protocol": "freedom"
         },

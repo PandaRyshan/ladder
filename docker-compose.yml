@@ -8,7 +8,7 @@ services:
     volumes:
       - ./config/v2ray/config.json:/etc/v2ray/config.json
       - ./config/geodata:/usr/share/v2ray
-      - ./log/v2ray:/var/log/v2ray
+      - ./config/certs:/etc/letsencrypt
     networks:
       - default
     command: run -config /etc/v2ray/config.json
@@ -24,13 +24,14 @@ services:
       - PGID=1000
       - TZ=${TZ}
       - URL=${DOMAIN}
+      - SUBDOMAINS=${V2RAY_SUB},${OCSERV_SUB}
+      - ONLY_SUBDOMAINS=true
       - VALIDATION=http
       - EMAIL=${EMAIL}
     volumes:
       - ./config/nginx:/config/nginx
       - ./config/certs:/config/etc/letsencrypt
       - ./config/www:/config/www
-      - ./log/nginx:/config/log/nginx
     networks:
       - default
     ports:
@@ -43,7 +44,7 @@ services:
     container_name: haproxy
     volumes:
       - ./config/haproxy:/usr/local/etc/haproxy:ro
-      - ./config/certs/live/${DOMAIN}:/etc/ssl/certs
+      - ./config/certs:/etc/letsencrypt
     networks:
       - default
     ports:
@@ -57,6 +58,22 @@ services:
       - default
     volumes:
       - ./config/warp:/var/lib/cloudflare-warp:rw
+    restart: unless-stopped
+
+  ocserv:
+    image: quay.io/aminvakil/ocserv:latest
+    container_name: ocserv
+    volumes:
+      - ./config/ocserv:/etc/ocserv
+      - ./config/certs:/etc/letsencrypt
+    sysctls:
+      - net.ipv4.ip_forward=1
+    cap_add:
+      - NET_ADMIN
+    security_opt:
+      - no-new-privileges
+    networks:
+      - default
     restart: unless-stopped
 
 
