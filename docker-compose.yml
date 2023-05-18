@@ -63,6 +63,9 @@ services:
   ocserv:
     image: duckduckio/ocserv:latest
     container_name: ocserv
+    environment:
+      - WAIT_HOSTS=swag:443
+      - WAIT_FILES=./config/certs/live/${OCSERV_SUB}.${DOMAIN}/fullchain.pem
     volumes:
       - ./config/ocserv:/etc/ocserv
       - ./config/certs:/etc/letsencrypt
