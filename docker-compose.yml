@@ -30,7 +30,7 @@ services:
       - EMAIL=${EMAIL}
     volumes:
       - ./config/nginx:/config/nginx
-      - ./config/certs:/etc/letsencrypt
+      - ./config/certs:/config/etc/letsencrypt
       - ./config/www:/config/www
     networks:
       - default
