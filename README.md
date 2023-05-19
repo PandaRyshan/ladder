@@ -18,12 +18,11 @@ Use `git clone https://github.com/PandaRyshan/ladder.git && cd ladder` command c
 
 Or
 
-1. register a domain name and bind your server ip in the DNS settings
-2. install docker, docker-compose-plugin(v2), see: [Install Guide](https://docs.docker.com/engine/install/)
-3. `git clone https://github.com/PandaRyshan/ladder.git && cd ladder`
-4. run `cp .env-sample .env` and replace your domain and email into the spaces
-5. run `cp` copy the v2ray/haproxy/ocserv config smaple files as real config files, and replace your domain into them
-6. run `docker compose up -d`
+1. install docker, docker-compose-plugin(v2), see: [Install Guide](https://docs.docker.com/engine/install/)
+2. `git clone https://github.com/PandaRyshan/ladder.git && cd ladder`
+3. run `cp .env-sample .env` and replace your domain and email into the spaces
+4. run `cp` copy the v2ray/haproxy/ocserv config smaple files as real config files, and replace your domain into them
+5. run `docker compose up -d`
 
 ## Reference
 
