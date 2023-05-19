@@ -179,7 +179,6 @@ function prepare_config {
 		PASSWORD=${PASSWORD}
 	EOENV
 	cp -f ./config/v2ray/config.json.sample ./config/v2ray/config.json
-	cp -f ./config/nginx/site-confs/default.conf.sample ./config/nginx/site-confs/default.conf
 	cp -f ./config/haproxy/haproxy.cfg.sample ./config/haproxy/haproxy.cfg
 	cp -f ./config/ocserv/ocserv.conf.sample ./config/ocserv/ocserv.conf
 
