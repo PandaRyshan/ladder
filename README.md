@@ -1,6 +1,6 @@
 # README
 
-This repo is aimed at helping users to easily deploy a new proxy or VPN environment or update the exists environment.
+This repository is designed to offer a almost out-of-the-box Docker environment for deploying a proxy service. It includes an automated bash script that simplifies the process of fresh deployments, updates, and uninstallations. All you need is a domain name and a VPS, and you can start using these services conveniently and securely.
 
 ## Components
 
