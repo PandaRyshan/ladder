@@ -46,6 +46,7 @@ dns = 8.8.8.8
 config-per-user = /etc/ocserv/config-per-user/
 config-per-group = /etc/ocserv/config-per-group/
 predictable-ips = true
+isolate-workers = true
 
 # let ocserv to obtain information on the incoming session from loadbalancer
 keepalive = 300
