@@ -64,7 +64,7 @@ services:
     image: duckduckio/ocserv:latest
     container_name: ocserv
     environment:
-      - DOMAIN=${OCSERV_SUB}.${DOMAIN}
+      - DOMAIN=${V2RAY_SUB}.${DOMAIN}
       - WAIT_HOSTS=swag:443
       - WAIT_FILES=./config/certs/live/${V2RAY_SUB}.${DOMAIN}/fullchain.pem
       - WAIT_HOSTS_TIMEOUT=300
