@@ -61,11 +61,11 @@ function input_info {
 	echo "如 www.example.com，主域名为 example.com，子域名为 www"
 	echo ""
 	read -p "主域名: " domain
-	read -p "邮箱（证书更新失败提醒）: " email
 	read -p "V2Ray 子域域名: " v2ray_sub
 	read -p "OpenConnect 子域名: " ocserv_sub
 	read -p "OpenConnect 用户名: " username
 	read -p "OpenConnect 密码: " password
+	read -p "邮箱（证书更新失败提醒）: " email
 	echo ""
 	read -p "请确认 (y/n):" confirm
 	# Convert to lowercase
@@ -115,7 +115,6 @@ function prepare_os_env {
 		sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 		sudo apt update
 		sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin wget git uuid-runtime
-		apt update && apt install -y wget git docker-ce docker-compose-plugin
 	elif [[ "${OS,,}" == *"debian"* ]]; then
 		sudo apt remove -y docker docker-engine docker.io containerd runc
 		sudo apt update
@@ -165,6 +164,9 @@ function prepare_os_env {
 		echo "Unsupported operating system"
 		exit 1
 	fi
+
+	usermod -a -G docker $USER
+	newgrp docker
 }
 
 function prepare_config {
