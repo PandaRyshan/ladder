@@ -1,5 +1,5 @@
 global
-    log stdout format raw local0 warning
+    log stdout format raw local0 info
     # if you need to monitoring, uncomment next line
     # stats socket /run/haproxy/admin.sock mode 660 level admin expose-fd listeners
     stats timeout 30s

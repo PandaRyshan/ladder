@@ -4,7 +4,7 @@ This repository is designed to offer a almost out-of-the-box Docker environment 
 
 ## Components
 
-* [v2ray](https://github.com/v2fly/v2ray-core): proxy server
+* [v2ray](https://github.com/v2fly/v2ray-core): proxy server + dns
 * [swag](https://github.com/linuxserver/docker-swag): nginx + certbot, request certs and process web requests
 * [haproxy](https://github.com/haproxy/haproxy): tcp requests router
 * [cloudflare-warp](https://developers.cloudflare.com/warp-client/get-started/linux/): socks5 proxy provided by cloudflare
@@ -23,6 +23,8 @@ Or
 3. run `cp .env-sample .env` and replace your domain and email into the spaces
 4. run `cp` copy the v2ray/haproxy/ocserv config smaple files as real config files, and replace your domain into them
 5. run `docker compose up -d`
+
+If you want to request certificates for other domains at the same time, you can use EXTRA_DOMAINS in swag's environment, see 'Parameters' in swag [README](https://github.com/linuxserver/docker-swag).
 
 ## Reference
 

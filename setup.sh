@@ -3,17 +3,18 @@
 # Menu
 function top_menu {
 	echo ""
-	echo "1. 部署 Deploy"
-	echo "2. 升级 Upgrade"
-	echo "3. 卸载 Uninstall"
-	echo "0. 退出 Exit"
+	echo "1. 部署 V2Ray + OpenConnect"
+	echo "2. 升级"
+	echo "3. 卸载"
+	echo "0. 退出"
 	echo ""
-	read -p "请输入数字 Please enter a number: " option
+	read -p "请输入数字: " option
 
 	if [ "$option" == "0" ]; then
 		exit 0
 	elif [ "$option" == "1" ]; then
-		install_menu
+		# install_menu
+		install_all
 	elif [ "$option" == "2" ]; then
 		upgrade
 	elif [ "$option" == "3" ]; then
@@ -54,14 +55,17 @@ function install_menu {
 # Receive user input and bind to environment variables
 function input_info {
 	echo ""
-	read -p "邮箱 Email: " email
-	read -p "域名 Domain: " domain
-	read -p "V2Ray子域 Subdomain: " v2ray_sub
-	if [ "$option" == "2" ] || [ "$option" == "3" ]; then
-		read -p "Ocserv子域 Subdomain: " ocserv_sub
-		read -p "用户名 Username: " username
-		read -p "密码 Password: " password
-	fi
+	echo "以下所有信息均为必填"
+	echo ""
+	echo "域名填写注意："
+	echo "如 www.example.com，主域名为 example.com，子域名为 www"
+	echo ""
+	read -p "主域名: " domain
+	read -p "邮箱（证书更新失败提醒）: " email
+	read -p "V2Ray 子域域名: " v2ray_sub
+	read -p "OpenConnect 子域名: " ocserv_sub
+	read -p "OpenConnect 用户名: " username
+	read -p "OpenConnect 密码: " password
 	echo ""
 	read -p "请确认 (y/n):" confirm
 	# Convert to lowercase
@@ -70,11 +74,11 @@ function input_info {
 		export DOMAIN="$domain"
 		export EMAIL="$email"
 		export V2RAY_SUB="$v2ray_sub"
-		if [ "$option" == "2" ] || [ "$option" == "3" ]; then
-			export OCSERV_SUB="$ocserv_sub"
-			export USERNAME="$username"
-			export PASSWORD="$password"
-		fi
+		export OCSERV_SUB="$ocserv_sub"
+		export USERNAME="$username"
+		export PASSWORD="$password"
+		export V2RAY_DOMAIN=${V2RAY_SUB}.${DOMAIN}
+		export OCSERV_DOMAIN=${OCSERV_SUB}.${DOMAIN}
 	elif [ "$confirm" == "n" ]; then
 		echo ""
 		echo "重新输入 Re-input"
@@ -91,7 +95,7 @@ function invalid_input {
 }
 
 function check_os_release {
-	if [ -f /etc/os-release ]; then
+	if [ -f "/etc/os-release" ]; then
 		. /etc/os-release
 		OS=$NAME
 	fi
@@ -99,9 +103,9 @@ function check_os_release {
 
 function prepare_os_env {
 	if [[ "${OS,,}" == *"ubuntu"* ]]; then
-		sudo apt-get remove -y docker docker-engine docker.io containerd runc
-		sudo apt-get update
-		sudo apt-get install -y ca-certificates curl gnupg
+		sudo apt remove -y docker docker-engine docker.io containerd runc
+		sudo apt update
+		sudo apt install -y ca-certificates curl gnupg
 		sudo install -m 0755 -d /etc/apt/keyrings
 		yes | curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 		sudo chmod a+r /etc/apt/keyrings/docker.gpg
@@ -109,13 +113,13 @@ function prepare_os_env {
   "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
   "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | \
 		sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-		sudo apt-get update
-		sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin wget git
+		sudo apt update
+		sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin wget git uuid-runtime
 		apt update && apt install -y wget git docker-ce docker-compose-plugin
 	elif [[ "${OS,,}" == *"debian"* ]]; then
-		sudo apt-get remove docker docker-engine docker.io containerd runc
-		sudo apt-get update
-		sudo apt-get install ca-certificates curl gnupg
+		sudo apt remove -y docker docker-engine docker.io containerd runc
+		sudo apt update
+		sudo apt install -y ca-certificates curl gnupg
 		sudo install -m 0755 -d /etc/apt/keyrings
 		curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 		sudo chmod a+r /etc/apt/keyrings/docker.gpg
@@ -123,9 +127,8 @@ function prepare_os_env {
   "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
   "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | \
 		sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-		sudo apt-get update
-		sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin wget git
-		apt update && apt install -y wget git docker-ce docker-compose-plugin
+		sudo apt update
+		sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin wget git uuid-runtime
 	elif [[ "${OS,,}" == *"centos"* ]]; then
 		sudo yum remove docker \
 			      docker-client \
@@ -137,7 +140,7 @@ function prepare_os_env {
 			      docker-engine
 		sudo yum install -y yum-utils
 		sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-		sudo yum install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin wget git
+		sudo yum install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin wget git uuid-runtime
 		sudo systemctl start docker
 		sudo systemctl enable docker
 	elif [[ "${OS,,}" == *"fedora"* ]]; then
@@ -153,7 +156,7 @@ function prepare_os_env {
 			      docker-engine
 		sudo dnf -y install dnf-plugins-core
 		sudo dnf config-manager --add-repo https://download.docker.com/linux/fedora/docker-ce.repo
-		sudo dnf install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+		sudo dnf install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin wget git uuid-runtime
 		sudo systemctl start docker
 		sudo systemctl enable docker
 	elif [[ "${OS,,}" == *"arch"* ]]; then
@@ -178,28 +181,34 @@ function prepare_config {
 		USERNAME=${USERNAME}
 		PASSWORD=${PASSWORD}
 	EOENV
-	cp -f ./config/v2ray/config.json.sample ./config/v2ray/config.json
-	cp -f ./config/haproxy/haproxy.cfg.sample ./config/haproxy/haproxy.cfg
-	cp -f ./config/ocserv/ocserv.conf.sample ./config/ocserv/ocserv.conf
 
 	# set up timezone
 	ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
 	sudo timedatectl set-timezone Asia/Shanghai
 
+	# set up docker-compose.yml
+	cp -f ./config/docker-compose.yml.sample ./docker-compose.yml
+
+	# set up haproxy haproxy.cfg
+	cp -f ./config/haproxy/haproxy.cfg.sample ./config/haproxy/haproxy.cfg
+	sed -i "s/<your-ocserv-domain>/${OCSERV_DOMAIN}/g" ./config/haproxy/haproxy.cfg
+	sed -i "s/<your-v2ray-domain>/${V2RAY_DOMAIN}/g" ./config/haproxy/haproxy.cfg
+
+	# set up v2ray config.json
+	cp -f ./config/v2ray/config.json.sample ./config/v2ray/config.json
 	sed -i "s/<your-host-ip>/$(curl -s https://ifconfig.me)/g" ./config/v2ray/config.json
-	sed -i "s/<your-v2ray-domain>/${V2RAY_SUB}.${DOMAIN}/g" ./config/v2ray/config.json
-
-	sed -i "s/<your-ocserv-domain>/${OCSERV_SUB}.${DOMAIN}/g" ./config/haproxy/haproxy.cfg
-	sed -i "s/<your-v2ray-domain>/${V2RAY_SUB}.${DOMAIN}/g" ./config/haproxy/haproxy.cfg
-
-	# after certs is generated, there's only one group of certs, all subdomains are included
-	# and the certs directory name is the first subdomain
-	sed -i "s/<your-ocserv-domain>/${V2RAY_SUB}.${DOMAIN}/g" ./config/ocserv/ocserv.conf
-
+	sed -i "s/<your-v2ray-domain>/${V2RAY_DOMAIN}/g" ./config/v2ray/config.json
+	sed -i "s/<your-uuid>/${uuidgen}/g" ./config/v2ray/config.json
 	# download latest geoip.dat and geosite.dat to ./geodata directory
 	mkdir -p ./config/geodata
 	wget -P ./config/geodata https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat
 	wget -P ./config/geodata https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat
+
+	# set up ocserv config
+	# after certs is generated, there's only one group of certs, all subdomains are included
+	# and the certs directory name is the first subdomain
+	cp -f ./config/ocserv/ocserv.conf.sample ./config/ocserv/ocserv.conf
+	sed -i "s/<your-ocserv-domain>/${V2RAY_DOMAIN}/g" ./config/ocserv/ocserv.conf
 }
 
 function start_containers {

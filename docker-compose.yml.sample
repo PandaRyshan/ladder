@@ -58,6 +58,8 @@ services:
       - default
     volumes:
       - ./config/warp:/var/lib/cloudflare-warp:rw
+    storage_opt:
+      size: 50MB
     restart: unless-stopped
 
   ocserv:
