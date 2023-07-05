@@ -216,6 +216,12 @@ function start_containers {
 	docker compose up -d
 }
 
+function cleanup {
+	rm ../setup.sh
+	echo ""
+	echo "Install Finished"
+}
+
 function install_all {
 	cd_script_dir
 	check_os_release
@@ -223,6 +229,7 @@ function install_all {
 	prepare_os_env
 	prepare_config
 	start_containers
+	cleanup
 }
 
 function upgrade {
