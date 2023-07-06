@@ -63,8 +63,10 @@ function input_info {
 	read -p "主域名: " domain
 	read -p "V2Ray 子域域名: " v2ray_sub
 	read -p "OpenConnect 子域名: " ocserv_sub
+	echo ""
 	read -p "OpenConnect 用户名: " username
 	read -p "OpenConnect 密码: " password
+	echo ""
 	read -p "邮箱（证书更新失败提醒）: " email
 	echo ""
 	read -p "请确认 (y/n):" confirm
@@ -107,7 +109,7 @@ function prepare_os_env {
 		sudo apt update
 		sudo apt install -y ca-certificates curl gnupg
 		sudo install -m 0755 -d /etc/apt/keyrings
-		yes | curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+		curl -fsSLO https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 		sudo chmod a+r /etc/apt/keyrings/docker.gpg
 		echo \
   "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
@@ -120,7 +122,7 @@ function prepare_os_env {
 		sudo apt update
 		sudo apt install -y ca-certificates curl gnupg
 		sudo install -m 0755 -d /etc/apt/keyrings
-		curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+		curl -fsSLO https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 		sudo chmod a+r /etc/apt/keyrings/docker.gpg
 		echo \
   "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
@@ -165,7 +167,7 @@ function prepare_os_env {
 		exit 1
 	fi
 
-	usermod -a -G docker $USER
+	sudo usermod -a -G docker $USER
 	newgrp docker
 }
 
@@ -215,6 +217,9 @@ function prepare_config {
 
 function start_containers {
 	cd_script_dir
+	if [ ! -f "./docker-compose.yml" ]; then
+		cd ladder
+	fi
 	docker compose up -d
 }
 
