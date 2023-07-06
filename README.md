@@ -2,6 +2,10 @@
 
 这个 repo 提供了一个开箱即用的梯子部署方案。你只需要有一个域名和一个 VPS，就可以使用脚本通过 Docker 容器化部署 V2Ray 和 OpenConnect 服务。
 
+> 当前脚本只提供了 V2Ray 和 OpenConnect 同时首次部署的功能。单独部署、升级、卸载功能未来再更新。
+>
+> 已在 Ubuntu 22.04 上测试通过
+
 ## 组件
 
 * [v2ray](https://github.com/v2fly/v2ray-core): V2Ray 代理服务 + DNS
@@ -27,7 +31,7 @@ chmod +x setup.sh
 ./setup.sh
 ```
 
-Then input your information into it, and wait until script finished.
+根据提示输入域名和邮箱（用于证书更新失败时的通知）。脚本提供的默认部署方式要用到子域名，主域名和子域名要分开写，如 `subdomain.example.com`，主域名部分是 `example.com`，子域名为 `subdomain`。请提前在 DNS 中设置好 V2Ray 和 OpenConnect 要使用的子域名解析。
 
 ### 选项 2
 
