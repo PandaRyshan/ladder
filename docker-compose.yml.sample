@@ -65,10 +65,10 @@ services:
   ocserv:
     image: duckduckio/ocserv:latest
     container_name: ocserv
-    env_file:
-      - .env
     environment:
       - DOMAIN=${V2RAY_SUB}.${DOMAIN}
+      - USERNAME=${USERNAME}
+      - PASSWORD=${PASSWORD}
       - WAIT_HOSTS=swag:443
       - WAIT_FILES=./config/certs/live/${V2RAY_SUB}.${DOMAIN}/fullchain.pem
       - WAIT_TIMEOUT=300
