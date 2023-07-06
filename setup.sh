@@ -296,14 +296,37 @@ function install_all {
 
 function upgrade {
 	cd_script_dir
+	if [ ! -f "./docker-compose.yml" ]; then
+		cd ladder
+	fi
 	git stash && git fetch && git pull
+	sg docker -c "
 	docker pull v2fly/v2fly-core
-	docker compose up -d v2ray
+	docker pull duckduckio/ocserv
+	docker compose up -d v2ray ocserv --force-recreate
+	docker image prune -f
+	"
+}
+
+function stop {
+	cd_script_dir
+	if [ ! -f "./docker-compose.yml" ]; then
+		cd ladder
+	fi
+	sg docker -c "
+	docker compose stop
+	"
 }
 
 function remove {
 	cd_script_dir
+	if [ ! -f "./docker-compose.yml" ]; then
+		cd ladder
+	fi
+	sg docker -c "
 	docker compose down
+	docker image prune -f
+	"
 }
 
 function help {
@@ -312,7 +335,9 @@ function help {
 	echo ""
 	echo "  -i, --install	install V2Ray and OpenConnect"
 	echo "  -u, --upgrade	upgrade V2Ray and OpenConnect"
-	echo "  -r, --remove	remove V2Ray and OpenConnect"
+	echo "  -r, --run		run V2Ray and OpenConnect"
+	echo "  -s, --stop		stop V2Ray and OpenConnect"
+	echo "  -c, --clean		stop & clean V2Ray and OpenConnect"
 	echo "  -h, --help		display this help and exit"
 }
 
@@ -331,7 +356,13 @@ while [[ $# -gt 0 ]]; do
 		-u|--upgrade)
 			upgrade
 			;;
-		-r|--remove|--uninstall)
+		-r|--run)
+			start_containers
+			;;
+		-s|--stop)
+			stop
+			;;
+		-c|--clean|--uninstall|--remove)
 			remove
 			;;
 		-h|--help)
