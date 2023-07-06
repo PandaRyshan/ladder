@@ -97,6 +97,7 @@ function invalid_input {
 }
 
 function check_os_release {
+	echo "checking os release..."
 	if [ -f "/etc/os-release" ]; then
 		. /etc/os-release
 		OS=$NAME
@@ -104,12 +105,14 @@ function check_os_release {
 }
 
 function prepare_os_env {
+	echo "preparing os environment..."
 	if [[ "${OS,,}" == *"ubuntu"* ]]; then
 		sudo apt remove -y docker docker-engine docker.io containerd runc
 		sudo apt update
 		sudo apt install -y ca-certificates curl gnupg
 		sudo install -m 0755 -d /etc/apt/keyrings
-		curl -fsSLO https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+		sudo rm -f /etc/apt/keyrings/docker.gpg
+		curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 		sudo chmod a+r /etc/apt/keyrings/docker.gpg
 		echo \
   "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
@@ -122,7 +125,8 @@ function prepare_os_env {
 		sudo apt update
 		sudo apt install -y ca-certificates curl gnupg
 		sudo install -m 0755 -d /etc/apt/keyrings
-		curl -fsSLO https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+		sudo rm -f /etc/apt/keyrings/docker.gpg
+		curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 		sudo chmod a+r /etc/apt/keyrings/docker.gpg
 		echo \
   "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
@@ -168,10 +172,10 @@ function prepare_os_env {
 	fi
 
 	sudo usermod -a -G docker $USER
-	newgrp docker
 }
 
 function prepare_config {
+	echo "setting up config..."
 	if [ ! -f "./docker-compose.yml" ]; then
 		git clone https://github.com/PandaRyshan/ladder.git
 		cd ladder
@@ -186,6 +190,7 @@ function prepare_config {
 		PASSWORD=${PASSWORD}
 	EOENV
 
+	pwd
 	# set up timezone
 	ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
 	sudo timedatectl set-timezone Asia/Shanghai
@@ -216,11 +221,16 @@ function prepare_config {
 }
 
 function start_containers {
+	echo "starting containers..."
 	cd_script_dir
+	pwd
 	if [ ! -f "./docker-compose.yml" ]; then
 		cd ladder
+		pwd
 	fi
+	sg docker -c "
 	docker compose up -d
+	"
 }
 
 function cleanup {
