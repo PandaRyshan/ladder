@@ -65,11 +65,13 @@ services:
   ocserv:
     image: duckduckio/ocserv:latest
     container_name: ocserv
+    env_file:
+      - .env
     environment:
       - DOMAIN=${V2RAY_SUB}.${DOMAIN}
       - WAIT_HOSTS=swag:443
       - WAIT_FILES=./config/certs/live/${V2RAY_SUB}.${DOMAIN}/fullchain.pem
-      - WAIT_HOSTS_TIMEOUT=300
+      - WAIT_TIMEOUT=300
     volumes:
       - ./config/ocserv:/etc/ocserv
       - ./config/certs:/etc/letsencrypt
