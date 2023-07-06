@@ -278,7 +278,9 @@ function start_containers {
 }
 
 function cleanup {
-	rm ../setup.sh
+	if [ -f "./docker-compose.yml" ]; then
+		rm ../setup.sh
+	fi
 	echo ""
 	echo "Install Finished"
 }
