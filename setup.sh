@@ -196,7 +196,7 @@ function prepare_config {
 	sudo timedatectl set-timezone Asia/Shanghai
 
 	# set up docker-compose.yml
-	cp -f ./config/docker-compose.yml.sample ./docker-compose.yml
+	cp -f ./docker-compose.yml.sample ./docker-compose.yml
 
 	# set up haproxy haproxy.cfg
 	cp -f ./config/haproxy/haproxy.cfg.sample ./config/haproxy/haproxy.cfg
@@ -222,12 +222,6 @@ function prepare_config {
 
 function start_containers {
 	echo "starting containers..."
-	cd_script_dir
-	pwd
-	if [ ! -f "./docker-compose.yml" ]; then
-		cd ladder
-		pwd
-	fi
 	sg docker -c "
 	docker compose up -d
 	"
