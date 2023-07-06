@@ -207,7 +207,7 @@ function prepare_config {
 	cp -f ./config/v2ray/config.json.sample ./config/v2ray/config.json
 	sed -i "s/<your-host-ip>/$(curl -s https://ifconfig.me)/g" ./config/v2ray/config.json
 	sed -i "s/<your-v2ray-domain>/${V2RAY_DOMAIN}/g" ./config/v2ray/config.json
-	sed -i "s/<your-uuid>/${uuidgen}/g" ./config/v2ray/config.json
+	sed -i "s/<your-uuid>/$(uuidgen)/g" ./config/v2ray/config.json
 	# download latest geoip.dat and geosite.dat to ./geodata directory
 	mkdir -p ./config/geodata
 	wget -P ./config/geodata https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat
