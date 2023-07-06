@@ -31,7 +31,7 @@ chmod +x setup.sh
 ./setup.sh
 ```
 
-根据提示输入域名和邮箱（用于证书更新失败时的通知）。脚本提供的默认部署方式要用到子域名，主域名和子域名要分开写，如 `subdomain.example.com`，主域名部分是 `example.com`，子域名为 `subdomain`。请提前在 DNS 中设置好 V2Ray 和 OpenConnect 要使用的子域名解析。
+根据提示输入域名和邮箱（用于证书更新失败时的通知）。脚本提供的默认部署方式要用到子域名，主域名和子域名要分开写，如 `subdomain.example.com`，主域名部分是 `example.com`，子域名为 `subdomain`。请提前在 DNS 中设置好 V2Ray 和 OpenConnect 要使用的子域名解析，并确保 VPS 的 80 和 443 端口是放开且未占用的。
 
 ### 选项 2
 
