@@ -278,7 +278,7 @@ function start_containers {
 }
 
 function cleanup {
-	if [ -f "./docker-compose.yml" ]; then
+	if [ -f "../setup.sh" ]; then
 		rm ../setup.sh
 	fi
 	echo ""
