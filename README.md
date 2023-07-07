@@ -21,19 +21,22 @@
 
 ## 用法
 
-### 选项 1
-
-使用自动部署脚本：
+### 选项 1: 使用自动部署脚本
 
 ```shell
+# 下载脚本
 wget https://github.com/PandaRyshan/ladder/raw/master/setup.sh
+
+# 给脚本执行权限
 chmod +x setup.sh
+
+# 运行脚本
 ./setup.sh
 ```
 
 根据提示输入域名和邮箱（用于证书更新失败时的通知）。脚本提供的默认部署方式要用到子域名，主域名和子域名要分开写，如 `subdomain.example.com`，主域名部分是 `example.com`，子域名为 `subdomain`。请提前在 DNS 中设置好 V2Ray 和 OpenConnect 要使用的子域名解析，并确保 VPS 的 80 和 443 端口是放开且未占用的。
 
-### 选项 2
+### 选项 2: 手动部署
 
 1. 安装 docker, docker-compose-plugin(v2), see: [Install Guide](https://docs.docker.com/engine/install/)
 
