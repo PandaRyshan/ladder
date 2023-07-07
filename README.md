@@ -14,9 +14,12 @@
 * [cloudflare-warp](https://developers.cloudflare.com/warp-client/get-started/linux/): Cloudflare 提供的 socks5 代理
 * [ocserv](https://ocserv.gitlab.io/www/index.html): 兼容 Cisco Anyconnect 协议的 OpenConnect VPN
 
-## 配置要求
+## 要求
 
-* 500MB 运行内存
+* 400MB 以上 RAM
+* 系统升级至最新
+* 配置好域名解析
+* 确保 80 和 443 端口是开放的
 
 ## 用法
 
@@ -72,6 +75,16 @@ chmod +x setup.sh
     ```
 
 如果你想通过 swag 来申请更多证书，可以在 docker-compose.yml 中使用 EXTRA_DOMAINS 参数, see 'Parameters' in swag [README](https://github.com/linuxserver/docker-swag).
+
+## 问题
+
+1. 几个容器反复重启
+
+    这种情况很有可能是因为证书申请失败，v2ray 和 openconnect 都需要配置证书才能运行。可以检查 ladder/config/certs/live 路径下的证书是否存在或完整。如果确认证书申请失败，可以通过重启 swag 容器让 swag 自动重新申请证书试试看。因此最好等自己的域名解析设置完成后，并确保 80 和 443 端口是开放且未被占用的状态。
+
+    ```shell
+    docker compose restart
+    ```
 
 ## 参考
 
