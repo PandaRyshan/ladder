@@ -12,8 +12,9 @@ This repository is designed to offer a almost out-of-the-box Docker environment 
 
 ## Requirements
 
-* 1c CPU
-* 500MB RAM
+* 400MB RAM
+* upgrade your os to latest
+* make sure your 80 and 443 port is open
 
 ## Usage
 
