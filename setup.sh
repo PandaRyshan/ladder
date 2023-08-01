@@ -275,6 +275,7 @@ function start_containers {
 	sg docker -c "
 	docker compose up -d
 	"
+  sudo docker compose restart
 }
 
 function cleanup {
@@ -302,12 +303,10 @@ function upgrade {
 		cd ladder
 	fi
 	git stash && git fetch && git pull
-	sg docker -c "
-	docker pull v2fly/v2fly-core
-	docker pull duckduckio/ocserv
-	docker compose up -d v2ray ocserv --force-recreate
-	docker image prune -f
-	"
+	sudo docker pull v2fly/v2fly-core
+	sudo docker pull duckduckio/ocserv
+	sudo docker compose up -d v2ray ocserv --force-recreate
+	sudo docker image prune -f
 }
 
 function stop {
@@ -315,9 +314,7 @@ function stop {
 	if [ ! -f "./docker-compose.yml" ]; then
 		cd ladder
 	fi
-	sg docker -c "
-	docker compose stop
-	"
+	sudo docker compose stop
 }
 
 function remove {
@@ -325,10 +322,8 @@ function remove {
 	if [ ! -f "./docker-compose.yml" ]; then
 		cd ladder
 	fi
-	sg docker -c "
-	docker compose down
-	docker image prune -f
-	"
+	sudo docker compose down
+	sudo docker image prune -f
 }
 
 function help {
