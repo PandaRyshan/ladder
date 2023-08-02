@@ -254,10 +254,11 @@ function prepare_config {
 	sed -i "s/<your-v2ray-domain>/${V2RAY_DOMAIN}/g" ./config/haproxy/haproxy.cfg
 
 	# set up v2ray config.json
+  UUID=$(uuidgen)
 	cp -f ./config/v2ray/config.json.sample ./config/v2ray/config.json
 	sed -i "s/<your-host-ip>/$(curl -s https://ifconfig.me)/g" ./config/v2ray/config.json
 	sed -i "s/<your-v2ray-domain>/${V2RAY_DOMAIN}/g" ./config/v2ray/config.json
-	sed -i "s/<your-uuid>/$(uuidgen)/g" ./config/v2ray/config.json
+	sed -i "s/<your-uuid>/${UUID}/g" ./config/v2ray/config.json
 	# download latest geoip.dat and geosite.dat to ./geodata directory
 	mkdir -p ./config/geodata
 	wget -P ./config/geodata https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat
@@ -282,6 +283,15 @@ function cleanup {
 	if [ -f "../setup.sh" ]; then
 		rm ../setup.sh
 	fi
+}
+
+function output_config {
+	echo ""
+	echo "##############################################"
+	echo "# Host: ${V2RAY_DOMAIN}"
+	echo "# Network: tcp"
+	echo "# UUID: ${UUID}"
+	echo "##############################################"
 	echo ""
 	echo "Install Finished"
 }
@@ -295,6 +305,7 @@ function install_all {
 	prepare_config
 	start_containers
 	cleanup
+	output_config
 }
 
 function upgrade {
