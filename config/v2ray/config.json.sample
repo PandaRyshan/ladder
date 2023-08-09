@@ -110,13 +110,19 @@
             },
             "streamSettings": {
                 "network": "quic",
-                "security": "none",
                 "quicSettings": {
                     "security": "chacha20-poly1305",
                     "key": "",
                     "header": {
                         "type": "none"
                     }
+                },
+                "security": "tls",
+                "tlsSettings": {
+                    "certificates": [{
+                        "certificateFile": "/etc/letsencrypt/live/<your-v2ray-domain>/fullchain.pem",
+                        "keyFile": "/etc/letsencrypt/live/<your-v2ray-domain>/privkey.pem"
+                    }]
                 }
             }
         },
