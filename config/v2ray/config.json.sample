@@ -27,9 +27,7 @@
                 "type": "field",
                 "outboundTag": "cf-warp",
                 "domain": [
-                    "domain:openai.com",
-                    "domain:netflix.com",
-                    "domain:bing.com"
+                    "domain:foo.example.com"
                 ]
             },
             {

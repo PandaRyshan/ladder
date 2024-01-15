@@ -30,6 +30,12 @@ chmod +x setup.sh
 
 Then input your information into it, and wait until script finished.
 
+If you found that you cannot connect to the server after all containers are ready, you could try restart all of them.
+
+```shell
+docker compose restart
+```
+
 ### option 2
 
 1. install docker, docker-compose-plugin(v2), see: [Install Guide](https://docs.docker.com/engine/install/)

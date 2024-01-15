@@ -38,6 +38,12 @@ chmod +x setup.sh
 
 根据提示输入域名和邮箱（用于证书更新失败时的通知）。脚本提供的默认部署方式要用到子域名，主域名和子域名要分开写，如 `subdomain.example.com`，主域名部分是 `example.com`，子域名为 `subdomain`。请提前在 DNS 中设置好 V2Ray 和 OpenConnect 要使用的子域名解析，并确保 VPS 的 80 和 443 端口是放开且未占用的。
 
+如果遇到服务已经完全启动，但无法连通的情况，重启一下容器就好了
+
+```shell
+docker compose restart
+```
+
 ### 选项 2: 手动部署
 
 1. 安装 docker, docker-compose-plugin(v2), see: [Install Guide](https://docs.docker.com/engine/install/)
