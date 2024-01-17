@@ -69,7 +69,7 @@ services:
       - DOMAIN=${V2RAY_SUB}.${DOMAIN}
       - USERNAME=${USERNAME}
       - PASSWORD=${PASSWORD}
-      - WAIT_HOSTS=swag:443
+      - WAIT_HOSTS=nginx:443
       - WAIT_FILES=./config/certs/live/${V2RAY_SUB}.${DOMAIN}/fullchain.pem
       - WAIT_TIMEOUT=300
     volumes:
