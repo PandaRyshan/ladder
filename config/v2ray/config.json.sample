@@ -18,33 +18,7 @@
             "8.8.8.8"
         ],
         "clientIp": "<your-host-ip>"
-        // ,"tag": "dns-in"
-    },
-    "routing": {
-        "domainStrategy": "AsIs",
-        "rules": [
-            {
-                "type": "field",
-                "outboundTag": "cf-warp",
-                "domain": [
-                    "domain:foo.example.com"
-                ]
-            },
-            {
-                "type": "field",
-                "outboundTag": "blocked",
-                "domain": [
-                    "geosite:category-ads-all"
-                ]
-            },
-            {
-              "type": "field",
-              "protocol": [
-                  "bittorrent"
-              ],
-              "outboundTag": "blocked"
-            }
-        ]
+        // "tag": "dns-in"
     },
     "inbounds": [
         {
@@ -139,6 +113,7 @@
     "outbounds": [
         // if no tag, first is the default
         {
+            "tag": "freedom",
             "protocol": "freedom"
         },
         {
@@ -162,6 +137,33 @@
             "protocol": "dns"
         }
     ],
+    "routing": {
+        "domainStrategy": "AsIs",
+        "rules": [
+            {
+                "outboundTag": "cf-warp",
+                "type": "field",
+                "domain": [
+                    "domain:foo.example.com"
+                ]
+            },
+            {
+                "outboundTag": "blocked",
+                "type": "field",
+                "domain": [
+                    "geosite:category-ads-all"
+                ],
+                "protocol": [
+                    "bittorrent"
+                ]
+            },
+            {
+                "outboundTag": "freedom",
+                "type": "field",
+                "domain": [""]
+            }
+        ]
+    },
     "policy": {
         "system": {
             "statsInboundUplink": false,

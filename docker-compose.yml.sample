@@ -51,16 +51,16 @@ services:
       - 443:443
     restart: unless-stopped
 
-  warp:
-    image: e7h4n/cloudflare-warp:latest
-    container_name: warp
-    networks:
-      - default
-    volumes:
-      - ./config/warp:/var/lib/cloudflare-warp:rw
-    storage_opt:
-      size: 50MB
-    restart: unless-stopped
+  # warp:
+  #   image: e7h4n/cloudflare-warp:latest
+  #   container_name: warp
+  #   networks:
+  #     - default
+  #   volumes:
+  #     - ./config/warp:/var/lib/cloudflare-warp:rw
+  #   storage_opt:
+  #     size: 50MB
+  #   restart: unless-stopped
 
   ocserv:
     image: duckduckio/ocserv:latest
