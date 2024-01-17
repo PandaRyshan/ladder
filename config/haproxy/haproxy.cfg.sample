@@ -35,11 +35,11 @@ frontend tls-in
     acl is_http req.ssl_alpn -i h2 or http/1.1
 
     use_backend ocserv if is_vpn
-    use_backend nginx if is_http
+    use_backend web if is_http
     use_backend v2ray if is_v2ray
 
-backend nginx
-    server nginx swag:443 alpn h2
+backend web
+    server web nginx:443 alpn h2
 
 backend v2ray
     server v2ray v2ray:10010

@@ -14,9 +14,9 @@ services:
     command: run -config /etc/v2ray/config.json
     restart: unless-stopped
 
-  swag:
+  nginx:
     image: linuxserver/swag:latest
-    container_name: swag
+    container_name: nginx
     cap_add:
       - NET_ADMIN
     environment:
