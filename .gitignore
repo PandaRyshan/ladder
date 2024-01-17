@@ -1,4 +1,8 @@
 # user's real environment variables
 .env
-config.json
-haproxy.cfg
+
+docker-compose.yml
+config/certs/
+config/geodata/
+config/nginx/
+config/config/ocserv/ocserv.conf
