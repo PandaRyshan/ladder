@@ -36,21 +36,21 @@ services:
     restart: unless-stopped
 
   haproxy_tcp:
-    image: haproxy:latest
+    image: pandasrun/haproxy:latest
     container_name: haproxy_tcp
     volumes:
       - ./config/haproxy/haproxy.tcp.cfg:/usr/local/etc/haproxy/haproxy.cfg
-      - ./config/certs:/etc/ssl/certs
+      - ./config/certs/live/${V2RAY_SUB}.${DOMAIN}:/etc/ssl/certs
     ports:
       - 443:443/tcp
     restart: unless-stopped
 
   haproxy_http:
-    image: haproxy:latest
+    image: pandasrun/haproxy:latest
     container_name: haproxy_http
     volumes:
       - ./config/haproxy/haproxy.http.cfg:/usr/local/etc/haproxy/haproxy.cfg
-      - ./config/certs:/etc/ssl/certs
+      - ./config/certs/live/${V2RAY_SUB}.${DOMAIN}:/etc/ssl/certs
     restart: unless-stopped
 
   ocserv:

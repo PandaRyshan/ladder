@@ -24,7 +24,7 @@ frontend tls-in
     acl is_http req.ssl_sni -i <your-v2ray-domain>
 
     use_backend ocserv if is_vpn
-    use_backend v2ray if is_v2ray
+    use_backend haproxy_http if is_http
 
 backend v2ray_tcp
     server v2ray v2ray:10010 check

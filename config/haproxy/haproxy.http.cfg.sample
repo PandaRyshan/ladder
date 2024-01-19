@@ -37,7 +37,7 @@ frontend http-in
 
     acl is_grpc hdr(content-type) -i application/grpc
 
-    use_backend v2ray if is_grpc
+    use_backend v2ray_grpc if is_grpc
     use_backend web if HTTP
 
 backend web
