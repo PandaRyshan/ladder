@@ -226,7 +226,7 @@ function prepare_os_env {
 
 function prepare_config {
 	echo "setting up config..."
-	if [ ! -f "./docker-compose.yml" ]; then
+	if [ ! -f "./docker-compose.yml.sample" ]; then
 		git clone https://github.com/PandaRyshan/ladder.git
 		cd ladder
 	fi
@@ -251,6 +251,7 @@ function prepare_config {
 	# set up haproxy haproxy.cfg
 	cp -f ./config/haproxy/haproxy.tcp.cfg.sample ./config/haproxy/haproxy.tcp.cfg
 	cp -f ./config/haproxy/haproxy.http.cfg.sample ./config/haproxy/haproxy.http.cfg
+	sed -i "s/<your-ocserv-domain>/${V2RAY_DOMAIN}/g" ./config/haproxy/haproxy.tcp.cfg
 	sed -i "s/<your-ocserv-domain>/${OCSERV_DOMAIN}/g" ./config/haproxy/haproxy.tcp.cfg
 
 	# set up v2ray config.json
