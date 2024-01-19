@@ -27,7 +27,7 @@ services:
       - VALIDATION=http
       - EMAIL=${EMAIL}
     volumes:
-      - ./config/nginx:/config/nginx
+      - ./config/nginx/site-confs/default.conf:/config/nginx/site-confs/default.conf
       - ./config/certs:/config/etc/letsencrypt
       - ./config/www:/config/www
     ports:
