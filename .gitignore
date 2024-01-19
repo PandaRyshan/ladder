@@ -4,8 +4,12 @@
 docker-compose.yml
 config/certs/
 config/geodata/
-config/nginx/
-config/config/ocserv/ocserv.conf
-config/haproxy/haproxy.cfg
-config/ocserv/ocserv.conf
-config/v2ray/config.json
+config/ocserv/
+config/haproxy/
+config/haproxy_http/
+config/v2ray/
+config/nginx/*.sample
+config/nginx/*.conf
+config/nginx/*.pem
+config/nginx/proxy-confs/
+config/nginx/site-confs/*.sample
