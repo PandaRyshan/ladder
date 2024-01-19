@@ -157,7 +157,7 @@ function prepare_sysconfig {
 function prepare_os_env {
 	echo "preparing os environment..."
 	if [[ "${OS,,}" == *"ubuntu"* ]]; then
-		sudo apt remove -y docker docker-engine docker.io containerd runc
+		sudo for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do sudo apt-get remove $pkg; done
 		sudo apt update
 		sudo apt install -y ca-certificates curl gnupg
 		sudo install -m 0755 -d /etc/apt/keyrings
@@ -171,7 +171,7 @@ function prepare_os_env {
 		sudo apt update
 		sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin wget git uuid-runtime
 	elif [[ "${OS,,}" == *"debian"* ]]; then
-		sudo apt remove -y docker docker-engine docker.io containerd runc
+		sudo for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do sudo apt-get remove $pkg; done
 		sudo apt update
 		sudo apt install -y ca-certificates curl gnupg
 		sudo install -m 0755 -d /etc/apt/keyrings
@@ -249,16 +249,19 @@ function prepare_config {
 	cp -f ./docker-compose.yml.sample ./docker-compose.yml
 
 	# set up haproxy haproxy.cfg
-	cp -f ./config/haproxy/haproxy.cfg.sample ./config/haproxy/haproxy.cfg
-	sed -i "s/<your-ocserv-domain>/${OCSERV_DOMAIN}/g" ./config/haproxy/haproxy.cfg
-	sed -i "s/<your-v2ray-domain>/${V2RAY_DOMAIN}/g" ./config/haproxy/haproxy.cfg
+	cp -f ./config/haproxy/haproxy.tcp.cfg.sample ./config/haproxy/haproxy.tcp.cfg
+	cp -f ./config/haproxy/haproxy.http.cfg.sample ./config/haproxy/haproxy.http.tcp.cfg
+	sed -i "s/<your-ocserv-domain>/${OCSERV_DOMAIN}/g" ./config/haproxy/haproxy.tcp.cfg
+	sed -i "s/<your-v2ray-domain>/${V2RAY_DOMAIN}/g" ./config/haproxy/haproxy.tcp.cfg
 
 	# set up v2ray config.json
-  UUID=$(uuidgen)
+	UUID=$(uuidgen)
+	SERVICE_NAME=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
 	cp -f ./config/v2ray/config.json.sample ./config/v2ray/config.json
 	sed -i "s/<your-host-ip>/$(curl -s https://ifconfig.me)/g" ./config/v2ray/config.json
 	sed -i "s/<your-v2ray-domain>/${V2RAY_DOMAIN}/g" ./config/v2ray/config.json
 	sed -i "s/<your-uuid>/${UUID}/g" ./config/v2ray/config.json
+	sed -i "s/<service-name>/${SERVICE_NAME}/g" ./config/v2ray/config.json
 	# download latest geoip.dat and geosite.dat to ./geodata directory
 	mkdir -p ./config/geodata
 	wget -P ./config/geodata https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat
@@ -286,6 +289,7 @@ function cleanup {
 }
 
 function output_config {
+	# TODO: Output v2ray config more detailed
 	echo ""
 	echo "##############################################"
 	echo "# Host: ${V2RAY_DOMAIN}"

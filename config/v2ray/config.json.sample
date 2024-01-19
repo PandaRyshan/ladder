@@ -20,6 +20,7 @@
     },
     "inbounds": [
         {
+            "tag": "tcp",
             "protocol": "vmess",
             "listen": "0.0.0.0",
             "port": 10010,
@@ -31,17 +32,11 @@
                 ]
             },
             "streamSettings": {
-                "network": "tcp",
-                "security": "tls",
-                "tlsSettings": {
-                    "certificates": [{
-                        "certificateFile": "/etc/letsencrypt/live/<your-v2ray-domain>/fullchain.pem",
-                        "keyFile": "/etc/letsencrypt/live/<your-v2ray-domain>/privkey.pem"
-                    }]
-                }
+                "network": "tcp"
             }
         },
         {
+            "tag": "h2",
             "protocol": "vmess",
             "listen": "0.0.0.0",
             "port": 10086,
@@ -53,21 +48,30 @@
                 ]
             },
             "streamSettings": {
-                "network": "h2",
-                "httpSettings": {
-                    "host": ["<your-v2ray-domain>"],
-                    "path": "/api/v1/users"
-                },
-                "security": "tls",
-                "tlsSettings": {
-                    "certificates": [{
-                        "certificateFile": "/etc/letsencrypt/live/<your-v2ray-domain>/fullchain.pem",
-                        "keyFile": "/etc/letsencrypt/live/<your-v2ray-domain>/privkey.pem"
-                    }]
+                "network": "h2"
+            }
+        },
+        {
+            "tag": "grpc",
+            "protocol": "vmess",
+            "listen": "0.0.0.0",
+            "port": 10088,
+            "settings": {
+                "clients": [
+                    {
+                        "id": "<your-uuid>"
+                    }
+                ]
+            },
+            "streamSettings": {
+                "network": "grpc",
+                "grpcSettings": {
+                    "serviceName": "<service-name>"
                 }
             }
         },
         {
+            "tag": "quic",
             "protocol": "vmess",
             "listen": "0.0.0.0",
             "port": 10000,
@@ -86,13 +90,6 @@
                     "header": {
                         "type": "none"
                     }
-                },
-                "security": "tls",
-                "tlsSettings": {
-                    "certificates": [{
-                        "certificateFile": "/etc/letsencrypt/live/<your-v2ray-domain>/fullchain.pem",
-                        "keyFile": "/etc/letsencrypt/live/<your-v2ray-domain>/privkey.pem"
-                    }]
                 }
             }
         },

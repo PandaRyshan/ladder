@@ -15,8 +15,11 @@ global
     # set DH length
     tune.ssl.default-dh-param 2048
 
+    # certs base dir
+    crt-base /etc/ssl/certs
+
 defaults
-    mode tcp
+    mode http
     log global
     option tcplog
     option dontlognull
@@ -24,28 +27,28 @@ defaults
     timeout client 300s
     timeout server 300s
 
-frontend tls-in
-    bind :443
+frontend http-in
+    bind :443 ssl crt priv-fullchain-bundle.pem proto h2 alpn h2,http/1.1
+    bind quic4@:443 ssl crt priv-fullchain-bundle.pem alpn h3
 
     tcp-request inspect-delay 5s
-    tcp-request content accept if { req_ssl_hello_type 1 }
+    http-request redirect scheme https unless { ssl_fc }
+    http-after-response add-header alt-svc 'h3=":443"; ma=900'
 
-    acl is_vpn req.ssl_sni -i <your-ocserv-domain>
-    acl is_v2ray req.ssl_sni -i <your-v2ray-domain>
-    acl is_http req.ssl_alpn -i h2 or http/1.1
+    acl is_grpc hdr(content-type) -i application/grpc
 
-    use_backend ocserv if is_vpn
-    use_backend web if is_http
-    use_backend v2ray if is_v2ray
+    use_backend v2ray if is_grpc
+    use_backend web if HTTP
 
 backend web
-    server web nginx:443 alpn h2
+    server web nginx:443 alpn h2 check
 
-backend v2ray
-    server v2ray v2ray:10010
+backend v2ray_h2
+    server v2ray v2ray:10086 alpn h2 check
 
-backend v2ray_http
-    server v2ray v2ray:10086 alpn h2
+backend v2ray_grpc
+    server v2ray v2ray:10088 proto h2 check
 
-backend ocserv
-    server ocserv ocserv:443 send-proxy-v2
+# quic is temporarily unsupported
+backend v2ray_quic
+    server v2ray v2ray:10000 alpn h3

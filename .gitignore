@@ -4,7 +4,6 @@
 docker-compose.yml
 config/certs/
 config/geodata/
-config/nginx/
 config/config/ocserv/ocserv.conf
 config/haproxy/haproxy.cfg
 config/ocserv/ocserv.conf

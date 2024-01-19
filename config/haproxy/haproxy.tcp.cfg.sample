@@ -1,0 +1,36 @@
+global
+    log stdout format raw local0 info
+    stats timeout 30s
+    daemon
+    
+    ssl-default-bind-options no-sslv3 no-tlsv10 no-tlsv11
+
+defaults
+    mode tcp
+    log global
+    option tcplog
+    option dontlognull
+    timeout connect 5s
+    timeout client 300s
+    timeout server 300s
+
+frontend tls-in
+    bind :443
+
+    tcp-request inspect-delay 5s
+    tcp-request content accept if { req_ssl_hello_type 1 }
+
+    acl is_vpn req.ssl_sni -i <your-ocserv-domain>
+    acl is_http req.ssl_sni -i <your-v2ray-domain>
+
+    use_backend ocserv if is_vpn
+    use_backend v2ray if is_v2ray
+
+backend v2ray_tcp
+    server v2ray v2ray:10010 check
+
+backend ocserv
+    server ocserv ocserv:443 send-proxy-v2
+
+backend haproxy_http
+    server haproxy haproxy_http:443

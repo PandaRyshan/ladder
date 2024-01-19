@@ -9,8 +9,6 @@ services:
       - ./config/v2ray/config.json:/etc/v2ray/config.json
       - ./config/geodata:/usr/share/v2ray
       - ./config/certs:/etc/letsencrypt
-    networks:
-      - default
     command: run -config /etc/v2ray/config.json
     restart: unless-stopped
 
@@ -32,38 +30,31 @@ services:
       - ./config/nginx:/config/nginx
       - ./config/certs:/config/etc/letsencrypt
       - ./config/www:/config/www
-    networks:
-      - default
     ports:
       # Uses 80 port to update certs first, otherwise haproxy cannot works
       - 80:80
     restart: unless-stopped
 
-  haproxy:
+  haproxy_tcp:
     image: haproxy:latest
-    container_name: haproxy
+    container_name: haproxy_tcp
     volumes:
-      - ./config/haproxy:/usr/local/etc/haproxy:ro
-      - ./config/certs:/etc/letsencrypt
-    networks:
-      - default
+      - ./config/haproxy/haproxy.tcp.cfg:/usr/local/etc/haproxy/haproxy.cfg
+      - ./config/certs:/etc/ssl/certs
     ports:
-      - 443:443
+      - 443:443/tcp
     restart: unless-stopped
 
-  # warp:
-  #   image: e7h4n/cloudflare-warp:latest
-  #   container_name: warp
-  #   networks:
-  #     - default
-  #   volumes:
-  #     - ./config/warp:/var/lib/cloudflare-warp:rw
-  #   storage_opt:
-  #     size: 50MB
-  #   restart: unless-stopped
+  haproxy_http:
+    image: haproxy:latest
+    container_name: haproxy_http
+    volumes:
+      - ./config/haproxy/haproxy.http.cfg:/usr/local/etc/haproxy/haproxy.cfg
+      - ./config/certs:/etc/ssl/certs
+    restart: unless-stopped
 
   ocserv:
-    image: duckduckio/ocserv:latest
+    image: pandasrun/ocserv:latest
     container_name: ocserv
     environment:
       - DOMAIN=${V2RAY_SUB}.${DOMAIN}
@@ -81,12 +72,4 @@ services:
       - NET_ADMIN
     security_opt:
       - no-new-privileges
-    networks:
-      - default
     restart: unless-stopped
-
-
-networks:
-
-  default:
-    driver: bridge
