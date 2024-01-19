@@ -319,7 +319,7 @@ function upgrade {
 	fi
 	git stash && git fetch && git pull
 	sudo docker pull v2fly/v2fly-core
-	sudo docker pull duckduckio/ocserv
+	sudo docker pull pandasrun/ocserv
 	sudo docker compose up -d v2ray ocserv --force-recreate
 	sudo docker image prune -f
 }
