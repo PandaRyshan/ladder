@@ -251,6 +251,7 @@ function prepare_config {
 	# set up haproxy haproxy.cfg
 	cp -f ./config/haproxy/haproxy.tcp.cfg.sample ./config/haproxy/haproxy.tcp.cfg
 	cp -f ./config/haproxy/haproxy.http.cfg.sample ./config/haproxy/haproxy.http.cfg
+	sed -i "s/<your-ocserv-domain>/${OCSERV_DOMAIN}/g" ./config/haproxy/haproxy.tcp.cfg
 
 	# set up v2ray config.json
 	UUID=$(uuidgen)
