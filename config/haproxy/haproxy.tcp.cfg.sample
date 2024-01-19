@@ -4,6 +4,7 @@ global
     daemon
     
     ssl-default-bind-options no-sslv3 no-tlsv10 no-tlsv11
+    ssl-server-verify none
 
 defaults
     mode tcp
