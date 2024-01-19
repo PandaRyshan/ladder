@@ -315,8 +315,9 @@ function install_all {
 
 function upgrade {
 	cd_script_dir
-	if [ ! -f "./docker-compose.yml.sample" ]; then
-		cd ladder
+	if [ ! -f "./docker-compose.yml" ]; then
+		echo "No docker-compose.yml found"
+		exit 1
 	fi
 	git stash && git fetch && git pull
 	sudo docker pull v2fly/v2fly-core
@@ -328,7 +329,8 @@ function upgrade {
 function stop {
 	cd_script_dir
 	if [ ! -f "./docker-compose.yml" ]; then
-		cd ladder
+		echo "No docker-compose.yml found"
+		exit 1
 	fi
 	sudo docker compose stop
 }
@@ -336,7 +338,8 @@ function stop {
 function remove {
 	cd_script_dir
 	if [ ! -f "./docker-compose.yml" ]; then
-		cd ladder
+		echo "No docker-compose.yml found"
+		exit 1
 	fi
 	sudo docker compose down
 	sudo docker image prune -f
