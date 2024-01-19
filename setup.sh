@@ -157,7 +157,7 @@ function prepare_sysconfig {
 function prepare_os_env {
 	echo "preparing os environment..."
 	if [[ "${OS,,}" == *"ubuntu"* ]]; then
-		sudo for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do sudo apt-get remove $pkg; done
+		for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do sudo apt-get remove $pkg; done;
 		sudo apt update
 		sudo apt install -y ca-certificates curl gnupg
 		sudo install -m 0755 -d /etc/apt/keyrings
