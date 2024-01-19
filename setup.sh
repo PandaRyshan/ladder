@@ -264,8 +264,8 @@ function prepare_config {
 	sed -i "s/<service-name>/${SERVICE_NAME}/g" ./config/v2ray/config.json
 	# download latest geoip.dat and geosite.dat to ./geodata directory
 	mkdir -p ./config/geodata
-	wget -P ./config/geodata https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat
-	wget -P ./config/geodata https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat
+	wget -O ./config/geodata/geoip.dat https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat
+	wget -O ./config/geodata/geosite.dat https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat
 
 	# set up ocserv config
 	# after certs is generated, there's only one group of certs, all subdomains are included
