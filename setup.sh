@@ -315,7 +315,7 @@ function install_all {
 
 function upgrade {
 	cd_script_dir
-	if [ ! -f "./docker-compose.yml" ]; then
+	if [ ! -f "./docker-compose.yml.sample" ]; then
 		cd ladder
 	fi
 	git stash && git fetch && git pull
