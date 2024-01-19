@@ -10,4 +10,6 @@ config/haproxy_http/
 config/v2ray/
 config/nginx/*.sample
 config/nginx/*.conf
+config/nginx/*.pem
+config/nginx/proxy-confs/
 config/nginx/site-confs/*.sample
