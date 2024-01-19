@@ -8,3 +8,6 @@ config/ocserv/
 config/haproxy/
 config/haproxy_http/
 config/v2ray/
+config/nginx/*.sample
+config/nginx/*.conf
+config/nginx/site-confs/*.sample
