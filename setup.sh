@@ -171,7 +171,7 @@ function prepare_os_env {
 		sudo apt update
 		sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin wget git uuid-runtime
 	elif [[ "${OS,,}" == *"debian"* ]]; then
-		sudo for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do sudo apt-get remove $pkg; done
+		for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do sudo apt-get remove $pkg; done
 		sudo apt update
 		sudo apt install -y ca-certificates curl gnupg
 		sudo install -m 0755 -d /etc/apt/keyrings
