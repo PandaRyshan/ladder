@@ -67,7 +67,7 @@ function input_info {
 	read -p "OpenConnect 用户名: " username
 	read -p "OpenConnect 密码: " password
 	echo ""
-	read -p "邮箱（证书更新失败提醒）: " email
+	read -p "邮箱（证书过期/更新失败提醒）: " email
 	echo ""
 	read -p "请确认 (y/n):" confirm
 	# Convert to lowercase
