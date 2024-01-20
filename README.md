@@ -10,9 +10,9 @@
 
 * [v2ray](https://github.com/v2fly/v2ray-core): V2Ray 代理服务 + DNS
 * [swag](https://github.com/linuxserver/docker-swag): Web 服务器 + 自动提供 Letsencrypt 证书
-* [haproxy](https://github.com/haproxy/haproxy): TCP 路由
-* [cloudflare-warp](https://developers.cloudflare.com/warp-client/get-started/linux/): Cloudflare 提供的 socks5 代理
+* [haproxy](https://github.com/haproxy/haproxy): TCP/UDP 路由
 * [ocserv](https://ocserv.gitlab.io/www/index.html): 兼容 Cisco Anyconnect 协议的 OpenConnect VPN
+* [cloudflare-warp](https://developers.cloudflare.com/warp-client/get-started/linux/): Cloudflare 提供的 socks5 代理
 
 ## 要求
 
@@ -22,8 +22,6 @@
 * 确保 80 和 443 端口是开放的
 
 ## 用法
-
-### 选项 1: 使用自动部署脚本
 
 ```shell
 # 下载脚本
@@ -44,53 +42,33 @@ chmod +x setup.sh
 docker compose restart
 ```
 
-### 选项 2: 手动部署
-
-1. 安装 docker, docker-compose-plugin(v2), see: [Install Guide](https://docs.docker.com/engine/install/)
-
-2. 克隆这个 repo
-
-   ```shell
-   git clone https://github.com/PandaRyshan/ladder.git && cd ladder
-   ```
-
-3. 创建你自己的 docker compose 配置文件，并完善其中的信息
-
-    ```shell
-    cp docker-compose.yml.sample docker-compose.yml
-    ```
-
-4. 创建你自己的 docker compose 环境文件，并完善其中的信息
-
-    ```shell
-    cp .env.sample .env
-    ```
-
-5. 创建你自己的 v2ray/haproxy/ocserv 配置文件, 并完善其中的信息
-
-    ```shell
-    cp config/v2ray/config.json.sample config/v2ray/config.json
-    cp config/ocserv/ocserv.conf.sample config/ocserv/ocserv.conf
-    cp config/haproxy/haproxy.cfg.sample config/haproxy/haproxy.cfg
-    ```
-
-6. 启动容器
-
-    ```shell
-    docker compose up -d
-    ```
-
 如果你想通过 swag 来申请更多证书，可以在 docker-compose.yml 中使用 EXTRA_DOMAINS 参数, see 'Parameters' in swag [README](https://github.com/linuxserver/docker-swag).
 
 ## 问题
 
-1. 几个容器反复重启
+1. 脚本启动后容器状态正常，但不能连不上
+
+   需要重启一下 HAProxy，原因还在调查
+
+   ```shell
+   docker compose restart haproxy_tcp haproxy_http
+   ```
+
+2. 几个容器反复重启
 
     这种情况很有可能是因为证书申请失败，v2ray 和 openconnect 都需要配置证书才能运行。可以检查 ladder/config/certs/live 路径下的证书是否存在或完整。如果确认证书申请失败，可以通过重启 swag 容器让 swag 自动重新申请证书试试看。因此最好等自己的域名解析设置完成后，并确保 80 和 443 端口是开放且未被占用的状态。
 
     ```shell
     docker compose restart
     ```
+
+3. 怎么启用 cloudflare warp
+
+   之前使用的 warp 镜像因为日志或其他缘故，会导致异常的存储占用，等我打包新版本的镜像后会重新加入到部署配置中
+
+4. 怎么配置 cloudflare warp
+
+   cloudflare warp 本身无需配置，只需在 config/v2ray/config.json 中的 warp 模块中，配置需要转发到 warp 的规则即可，v2ray 的规则编写可以参考 v2ray 文档
 
 ## 参考
 

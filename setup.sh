@@ -320,7 +320,7 @@ function upgrade {
 		exit 1
 	fi
 	git stash && git fetch && git pull
-	sudo docker pull v2fly/v2fly-core
+	sudo docker pull pandasrun/v2fly-core
 	sudo docker pull pandasrun/ocserv
 	sudo docker compose up -d v2ray ocserv --force-recreate
 	sudo docker image prune -f

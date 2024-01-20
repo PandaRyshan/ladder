@@ -7,8 +7,8 @@ This repository is designed to offer a almost out-of-the-box Docker environment 
 * [v2ray](https://github.com/v2fly/v2ray-core): proxy server + dns
 * [swag](https://github.com/linuxserver/docker-swag): nginx + certbot, request certs and process web requests
 * [haproxy](https://github.com/haproxy/haproxy): tcp requests router
-* [cloudflare-warp](https://developers.cloudflare.com/warp-client/get-started/linux/): socks5 proxy provided by cloudflare
 * [ocserv](https://ocserv.gitlab.io/www/index.html): a vpn server compatible with cisco anyconnect
+* [cloudflare-warp](https://developers.cloudflare.com/warp-client/get-started/linux/): socks5 proxy provided by cloudflare
 
 ## Requirements
 
@@ -17,8 +17,6 @@ This repository is designed to offer a almost out-of-the-box Docker environment 
 * make sure your 80 and 443 port is open
 
 ## Usage
-
-### option 1
 
 There's a script that you can deploy these containers automatically.
 
@@ -36,42 +34,25 @@ If you found that you cannot connect to the server after all containers are read
 docker compose restart
 ```
 
-### option 2
+If you want to request certificates for other domains at the same time, you can use EXTRA_DOMAINS in swag's environment, see 'Parameters' in swag [README](https://github.com/linuxserver/docker-swag).
 
-1. install docker, docker-compose-plugin(v2), see: [Install Guide](https://docs.docker.com/engine/install/)
-2. clone this repo
+## Known Issues
+
+1. All containers status are ready, but I can't connect to my server
+
+   Basiclly this will only happen after your first deploy. Sometimes you need to restart HAProxy. I'm still digging the reason.
 
    ```shell
-   git clone https://github.com/PandaRyshan/ladder.git && cd ladder
+   docker compose restart haproxy_tcp haproxy_http
    ```
 
-3. create your own docker compose file, and replace your own info into it
+2. Why cloudflare warp is not start
 
-    ```shell
-    cp docker-compose.yml.sample docker-compose.yml
-    ```
+   Previously the warp image I used have some problems and will cause the used storage explode. This component will be back after I build my own image.
 
-4. create your own env file, and replace your own info into it
+3. How to set up cloud warp
 
-    ```shell
-    cp .env.sample .env
-    ```
-
-5. create your own v2ray/haproxy/ocserv config files, and replace your domain into them
-
-    ```shell
-    cp config/v2ray/config.json.sample config/v2ray/config.json
-    cp config/ocserv/ocserv.conf.sample config/ocserv/ocserv.conf
-    cp config/haproxy/haproxy.cfg.sample config/haproxy/haproxy.cfg
-    ```
-
-6. start the containers
-
-    ```shell
-    docker compose up -d
-    ```
-
-If you want to request certificates for other domains at the same time, you can use EXTRA_DOMAINS in swag's environment, see 'Parameters' in swag [README](https://github.com/linuxserver/docker-swag).
+   No need to configuration, just fill your rules in the config/v2ray/config.json
 
 ## Reference
 
