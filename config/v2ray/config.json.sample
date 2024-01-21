@@ -106,7 +106,8 @@
         }
     ],
     "outbounds": [
-        // if no tag, first is the default
+        // first one is the default option
+        // could be omitted in "routing" block below
         {
             "tag": "freedom",
             "protocol": "freedom"
@@ -143,19 +144,26 @@
                 ]
             },
             {
+                "outboundTag": "cf-warp",
+                "type": "field",
+                "ip": [
+                    // "geoip:netflix"
+                    ""
+                ]
+            },
+            {
                 "outboundTag": "blocked",
                 "type": "field",
                 "domain": [
                     "geosite:category-ads-all"
-                ],
-                "protocol": [
-                    "bittorrent"
                 ]
             },
             {
-                "outboundTag": "freedom",
+                "outboundTag": "blocked",
                 "type": "field",
-                "domain": [""]
+                "protocol": [
+                    "bittorrent"
+                ]
             }
         ]
     },
