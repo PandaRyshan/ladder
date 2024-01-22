@@ -147,7 +147,6 @@
                 "outboundTag": "cf-warp",
                 "type": "field",
                 "ip": [
-                    // "geoip:netflix"
                     ""
                 ]
             },
