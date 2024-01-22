@@ -72,3 +72,10 @@ services:
     security_opt:
       - no-new-privileges
     restart: unless-stopped
+
+  warp:
+    image: pandasrun/warp:latest
+    container_name: warp
+    volumes:
+      - ./config/warp:/var/lib/cloudflare-warp
+    restart: unless-stopped
