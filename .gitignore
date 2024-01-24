@@ -1,15 +1,16 @@
 # user's real environment variables
 .env
 
-docker-compose.yml
-config/certs/
-config/geodata/
-config/ocserv/
-config/haproxy/
-config/haproxy_http/
-config/v2ray/
-config/nginx/*.sample
-config/nginx/*.conf
-config/nginx/*.pem
-config/nginx/proxy-confs/
-config/nginx/site-confs/*.sample
+/docker-compose.yml
+/config/certs/
+/config/geodata/
+/config/ocserv/
+/config/haproxy/
+/config/haproxy_http/
+/config/v2ray/
+/config/nginx/*.sample
+/config/nginx/*.conf
+/config/nginx/*.pem
+/config/nginx/proxy-confs/
+/config/nginx/site-confs/*.sample
+
