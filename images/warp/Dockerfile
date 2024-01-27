@@ -15,6 +15,6 @@ RUN set -x \
 
 COPY entrypoint.sh /usr/local/bin/
 
-ENTRYPOINT ["docker-entrypoint.sh"]
-EXPOSE 40001
+ENTRYPOINT [ "docker-entrypoint.sh" ]
 
+EXPOSE 40001

@@ -3,7 +3,11 @@ FROM alpine:latest
 LABEL maintainer="Hu Xiaohong <xiaohong@pandas.run>"
 
 RUN apk update \
-        && apk add v2ray \
+        && apk add v2ray socat \
         && rm -rf /var/cache/apk/*
 
-ENTRYPOINT ["v2ray", "run", "-c", "/etc/v2ray/config.json"]
+COPY docker-entrypoint.sh /usr/local/bin/
+
+ENTRYPOINT [ "docker-entrypoint.sh" ]
+
+EXPOSE 7890
