@@ -13,7 +13,7 @@ RUN set -x \
   && apt purge --auto-remove -y curl lsb-release \
   && apt clean && rm -rf /var/lib/apt/lists/*
 
-COPY entrypoint.sh /usr/local/bin/
+COPY docker-entrypoint.sh /usr/local/bin/
 
 ENTRYPOINT [ "docker-entrypoint.sh" ]
 
