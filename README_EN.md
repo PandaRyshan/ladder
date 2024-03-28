@@ -72,5 +72,5 @@ If you want to request certificates for other domains at the same time, you can 
   * [x] deploy v2ray + ocserv
   * [ ] deploy v2ray only
   * [ ] deploy ocserv only
-* [ ] upgrade via script
+* [x] upgrade via script
 * [ ] remove via script

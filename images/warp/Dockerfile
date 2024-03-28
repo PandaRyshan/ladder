@@ -13,8 +13,9 @@ RUN set -x \
   && apt purge --auto-remove -y curl lsb-release \
   && apt clean && rm -rf /var/lib/apt/lists/*
 
-COPY docker-entrypoint.sh /usr/bin/
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-ENTRYPOINT [ "docker-entrypoint.sh" ]
+ENTRYPOINT docker-entrypoint.sh
 
 EXPOSE 40001

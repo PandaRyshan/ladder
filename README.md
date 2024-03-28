@@ -62,11 +62,7 @@ docker compose restart
     docker compose restart
     ```
 
-3. 怎么启用 cloudflare warp
-
-   之前使用的 warp 镜像因为日志或其他缘故，会导致异常的存储占用，等我打包新版本的镜像后会重新加入到部署配置中
-
-4. 怎么配置 cloudflare warp
+3. 怎么配置 cloudflare warp
 
    cloudflare warp 本身无需配置，只需在 config/v2ray/config.json 中的 warp 模块中，配置需要转发到 warp 的规则即可，v2ray 的规则编写可以参考 v2ray 文档
 
