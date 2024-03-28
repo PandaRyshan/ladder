@@ -9,7 +9,11 @@ PROXY_MODE=${PROXY_MODE:-proxy}
 echo "0 */$CLEANUP_INTERVAL * * * rm -rf /var/lib/cloudflare/*.txt /var/lib/cloudflare/crash_reports/" > /etc/cron.d/cleanup_warp_log
 chmod 0644 /etc/cron.d/cleanup_warp_log
 crontab /etc/cron.d/cleanup_warp_log
+
+# start cron and dbus daemon
 service cron start
+service dbus start
+
 
 echo "------------ svc start ------------"
 # start warp-svc daemon in &
@@ -22,7 +26,7 @@ sleep $DAEMON_DELAY
 if [ ! -f "/var/lib/cloudflare-warp/reg.json" ]; then
 	# register_warp.exp
 	echo "------------ register ------------"
-	warp-cli --accept-tos register
+	warp-cli --accept-tos registration new
 fi
 
 if [[ -n "$WARP_KEY" ]]; then
@@ -32,10 +36,7 @@ fi
 
 # warp-cli default mode is warp which will change the network
 echo "------------ set-proxy-mode ------------"
-warp-cli --accept-tos set-mode proxy
-
-echo "------------ set-always-on ------------"
-warp-cli --accept-tos enable-always-on
+warp-cli --accept-tos mode proxy
 
 echo "------------ start connect ------------"
 # exec "$@"
