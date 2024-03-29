@@ -16,7 +16,7 @@ services:
       - NET_ADMIN
     environment:
       - PUID=1000
-      - PGID=1000
+      - PGID=99
       - TZ=${TZ}
       - URL=${DOMAIN}
       - SUBDOMAINS=${V2RAY_SUB},${OCSERV_SUB}

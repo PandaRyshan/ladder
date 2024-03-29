@@ -258,7 +258,7 @@ function prepare_config {
 	UUID=$(uuidgen)
 	SERVICE_NAME=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
 	cp -f ./config/v2ray/config.json.sample ./config/v2ray/config.json
-	sed -i "s/<your-host-ip>/$(curl -s https://ifconfig.me)/g" ./config/v2ray/config.json
+	sed -i "s/<your-host-ip>/$(curl -s https://ipinfo.io/ip)/g" ./config/v2ray/config.json
 	sed -i "s/<your-v2ray-domain>/${V2RAY_DOMAIN}/g" ./config/v2ray/config.json
 	sed -i "s/<your-uuid>/${UUID}/g" ./config/v2ray/config.json
 	sed -i "s/<service-name>/${SERVICE_NAME}/g" ./config/v2ray/config.json
