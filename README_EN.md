@@ -12,7 +12,7 @@ This repository is designed to offer a almost out-of-the-box Docker environment 
 
 ## Requirements
 
-* 400MB RAM
+* 600MB RAM
 * upgrade your os to latest
 * make sure your 80 and 443 port is open
 
@@ -21,7 +21,7 @@ This repository is designed to offer a almost out-of-the-box Docker environment 
 There's a script that you can deploy these containers automatically.
 
 ```shell
-wget https://github.com/PandaRyshan/ladder/raw/master/setup.sh
+wget https://raw.githubusercontent.com/PandaRyshan/ladder/main/setup.sh
 chmod +x setup.sh
 ./setup.sh
 ```

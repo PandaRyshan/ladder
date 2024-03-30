@@ -279,7 +279,10 @@ function start_containers {
 	sg docker -c "
 	docker compose up -d
 	"
-	sleep 10
+}
+
+function restart_containers {
+	echo "restarting containers..."
 	sudo docker compose restart haproxy_http haproxy_tcp
 }
 
@@ -291,12 +294,12 @@ function cleanup {
 
 function output_config {
 	echo "
-	##############################################
-	# Host: ${V2RAY_DOMAIN}                      #
-	# Network: grpc                              #
-	# UUID: ${UUID}                              #
-	# ServiceName: ${SERVICE_NAME}               #
-	##############################################
+	##################################################
+	  Host: ${V2RAY_DOMAIN}
+	  Network: grpc
+	  UUID: ${UUID}
+	  ServiceName: ${SERVICE_NAME}
+	##################################################
 
 	Install Finished.
 	" > ./v2ray_info.txt
@@ -312,6 +315,8 @@ function install_all {
 	prepare_os_env
 	prepare_config
 	start_containers
+	sleep 10
+	restart_containers
 	cleanup
 	output_config
 }

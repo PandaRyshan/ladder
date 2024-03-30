@@ -16,7 +16,7 @@
 
 ## 要求
 
-* 400MB 以上 RAM
+* 600MB 以上 RAM
 * 系统升级至最新
 * 配置好域名解析
 * 确保 80 和 443 端口是开放的
@@ -25,7 +25,7 @@
 
 ```shell
 # 下载脚本
-wget https://github.com/PandaRyshan/ladder/raw/master/setup.sh
+wget https://raw.githubusercontent.com/PandaRyshan/ladder/main/setup.sh
 
 # 给脚本执行权限
 chmod +x setup.sh
