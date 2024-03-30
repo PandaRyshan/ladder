@@ -22,10 +22,10 @@ frontend tls-in
     tcp-request content accept if { req_ssl_hello_type 1 }
 
     acl is_vpn req.ssl_sni -i <your-ocserv-domain>
-    acl is_http req.ssl_sni -i <your-v2ray-domain>
+    acl is_v2ray req.ssl_sni -i <your-v2ray-domain>
 
     use_backend ocserv if is_vpn
-    use_backend haproxy_http if is_http
+    use_backend haproxy_http if is_v2ray
 
 backend v2ray_tcp
     server v2ray v2ray:10010 check
