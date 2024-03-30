@@ -276,9 +276,10 @@ function prepare_config {
 
 function start_containers {
 	echo "starting containers..."
-	sg docker -c "
-	docker compose up -d
-	"
+	# sg docker -c "
+	# docker compose up -d
+	# "
+	sudo docker compose up -d
 }
 
 function restart_containers {
@@ -315,7 +316,7 @@ function install_all {
 	prepare_os_env
 	prepare_config
 	start_containers
-	sleep 10
+	sleep 5
 	restart_containers
 	cleanup
 	output_config
