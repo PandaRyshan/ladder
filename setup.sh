@@ -279,7 +279,8 @@ function start_containers {
 	sg docker -c "
 	docker compose up -d
 	"
-  sudo docker compose restart
+	sleep 10
+	sudo docker compose restart haproxy_http haproxy_tcp
 }
 
 function cleanup {
@@ -289,16 +290,18 @@ function cleanup {
 }
 
 function output_config {
-	# TODO: Output v2ray config more detailed
-	echo ""
-	echo "##############################################"
-	echo "# Host: ${V2RAY_DOMAIN}"
-	echo "# Network: grpc"
-	echo "# UUID: ${UUID}"
-	echo "# ServiceName: ${SERVICE_NAME}"
-	echo "##############################################"
-	echo ""
-	echo "Install Finished"
+	echo "
+	##############################################
+	# Host: ${V2RAY_DOMAIN}                      #
+	# Network: grpc                              #
+	# UUID: ${UUID}                              #
+	# ServiceName: ${SERVICE_NAME}               #
+	##############################################
+
+	Install Finished.
+	" > ./v2ray_info.txt
+
+	cat ./v2ray_info.txt
 }
 
 function install_all {
