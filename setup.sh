@@ -316,8 +316,6 @@ function install_all {
 	prepare_os_env
 	prepare_config
 	start_containers
-	sleep 5
-	restart_containers
 	cleanup
 	output_config
 }
