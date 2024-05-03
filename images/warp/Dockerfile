@@ -1,4 +1,4 @@
-FROM ubuntu:latest
+FROM ubuntu:jammy
 LABEL maintainer="Hu Xiaohong <xiaohong@pandas.run>"
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
