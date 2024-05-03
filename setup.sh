@@ -156,6 +156,17 @@ function prepare_sysconfig {
 
 function prepare_os_env {
 	echo "preparing os environment..."
+
+	mkdir -p /etc/docker
+	cat > /etc/docker/daemon.json <<- EOF
+	{
+		"ipv6": true,
+		"fixed-cidr-v6": "2001:db8:1::/64",
+		"experimental": true,
+		"ip6tables": true
+	}
+	EOF
+
 	if [[ "${OS,,}" == *"ubuntu"* ]]; then
 		for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do sudo apt-get remove $pkg; done;
 		sudo apt update
@@ -257,8 +268,16 @@ function prepare_config {
 	# set up v2ray config.json
 	UUID=$(uuidgen)
 	SERVICE_NAME=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
+	PUBLIC_IP=$(timeout 3 curl -s https://ipinfo.io/ip || echo "")
+	if [ -z "$PUBLIC_IP" ]; then
+		PUBLIC_IP=$(timeout 3 curl -s https://6.ipinfo.io/ip || echo "")
+		if [ -z "$PUBLIC_IP" ]; then
+			echo "Failed to get IP address"
+			exit 1
+		fi
+	fi
 	cp -f ./config/v2ray/config.json.sample ./config/v2ray/config.json
-	sed -i "s/<your-host-ip>/$(curl -s https://ipinfo.io/ip)/g" ./config/v2ray/config.json
+	sed -i "s/<your-host-ip>/${PUBLIC_IP}/g" ./config/v2ray/config.json
 	sed -i "s/<your-v2ray-domain>/${V2RAY_DOMAIN}/g" ./config/v2ray/config.json
 	sed -i "s/<your-uuid>/${UUID}/g" ./config/v2ray/config.json
 	sed -i "s/<service-name>/${SERVICE_NAME}/g" ./config/v2ray/config.json

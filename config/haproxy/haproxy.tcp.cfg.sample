@@ -16,7 +16,7 @@ defaults
     timeout server 300s
 
 frontend tls-in
-    bind :443
+    bind :::443 v4v6
 
     tcp-request inspect-delay 5s
     tcp-request content accept if { req_ssl_hello_type 1 }

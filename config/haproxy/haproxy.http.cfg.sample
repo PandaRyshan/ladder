@@ -28,8 +28,8 @@ defaults
     timeout server 300s
 
 frontend http-in
-    bind :443 ssl crt priv-fullchain-bundle.pem proto h2 alpn h2,http/1.1
-    bind quic4@:443 ssl crt priv-fullchain-bundle.pem alpn h3
+    bind :::443 v4v6 ssl crt priv-fullchain-bundle.pem proto h2 alpn h2,http/1.1
+    bind quic4@:443 v4v6 ssl crt priv-fullchain-bundle.pem alpn h3
 
     tcp-request inspect-delay 5s
     http-request redirect scheme https unless { ssl_fc }
