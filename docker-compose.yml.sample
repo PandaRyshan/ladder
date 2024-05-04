@@ -77,3 +77,10 @@ services:
     volumes:
       - ./config/warp:/var/lib/cloudflare-warp
     restart: unless-stopped
+
+networks:
+  ipv6:
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: 2001:0DB8::/112
