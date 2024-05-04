@@ -31,7 +31,7 @@ fi
 
 if [[ -n "$WARP_KEY" ]]; then
 	echo "------------ set-license ------------"
-	warp-cli --accept-tos set-license $WARP_KEY
+	warp-cli --accept-tos registration license $WARP_KEY
 fi
 
 # warp-cli default mode is warp which will change the network
