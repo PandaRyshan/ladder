@@ -1,6 +1,6 @@
 # README
 
-这个 repo 提供了一个开箱即用的梯子部署方案。你只需要有一个域名和一个 VPS，就可以使用脚本通过 Docker 容器化部署 V2Ray(v5.12.1) 和 OpenConnect(v1.2.4) 服务。
+这个 repo 提供了一个开箱即用的梯子部署方案。你只需要有一个域名和一个 VPS，就可以使用脚本通过 Docker 容器化部署 V2Ray(v5.12.1) 和 OpenConnect(v1.3.0) 服务。
 
 > 当前只提供了 V2Ray 和 OpenConnect 一起部署的功能，并在 Ubuntu 22.04 测试通过
 >

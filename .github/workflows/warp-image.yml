@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - 'main'
+    paths:
+      - 'images/warp/**'
 
 jobs:
   docker:
@@ -24,13 +26,6 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      -
-        name: Build and push v2ray
-        uses: docker/build-push-action@v5
-        with:
-          context: ./images/v2ray
-          push: true
-          tags: pandasrun/v2ray:latest
       -
         name: Build and push warp
         uses: docker/build-push-action@v5

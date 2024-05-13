@@ -7,6 +7,8 @@ services:
       - ./config/v2ray/config.json:/etc/v2ray/config.json
       - ./config/geodata:/usr/share/v2ray
       - ./config/certs:/etc/letsencrypt
+    networks:
+      - ipv6
     restart: unless-stopped
 
   nginx:
@@ -27,6 +29,8 @@ services:
       - ./config/nginx/site-confs/default.conf:/config/nginx/site-confs/default.conf
       - ./config/certs:/config/etc/letsencrypt
       - ./config/www:/config/www
+    networks:
+      - ipv6
     ports:
       # Uses 80 port to update certs first, otherwise haproxy cannot works
       - 80:80
@@ -38,6 +42,8 @@ services:
     volumes:
       - ./config/haproxy/haproxy.tcp.cfg:/usr/local/etc/haproxy/haproxy.cfg
       - ./config/certs/live/${V2RAY_SUB}.${DOMAIN}:/etc/ssl/certs
+    networks:
+      - ipv6
     ports:
       - 443:443/tcp
     restart: unless-stopped
@@ -48,6 +54,8 @@ services:
     volumes:
       - ./config/haproxy/haproxy.http.cfg:/usr/local/etc/haproxy/haproxy.cfg
       - ./config/certs/live/${V2RAY_SUB}.${DOMAIN}:/etc/ssl/certs
+    networks:
+      - ipv6
     restart: unless-stopped
 
   ocserv:
@@ -63,6 +71,8 @@ services:
     volumes:
       - ./config/ocserv:/etc/ocserv
       - ./config/certs:/etc/letsencrypt
+    networks:
+      - ipv6
     sysctls:
       - net.ipv4.ip_forward=1
     cap_add:
@@ -76,6 +86,8 @@ services:
     container_name: warp
     volumes:
       - ./config/warp:/var/lib/cloudflare-warp
+    networks:
+      - ipv6
     restart: unless-stopped
 
 networks:
