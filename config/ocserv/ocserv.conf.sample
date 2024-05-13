@@ -86,7 +86,7 @@ switch-to-tcp-timeout = 25
 try-mtu-discovery = true
 
 # Uncomment if you are using haproxy
-# listen-proxy-proto = true
+listen-proxy-proto = true
 
 # Uncomment to enable compression negotiation (LZS, LZ4) and set minimum
 # under a packet will not be compressed.
