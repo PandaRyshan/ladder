@@ -7,6 +7,8 @@ on:
     paths:
       - 'images/v2ray/**'
 
+  workflow_dispatch:
+
 jobs:
   docker:
     runs-on: ubuntu-latest
