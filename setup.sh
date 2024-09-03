@@ -28,9 +28,7 @@ main_menu() {
 				deploy_menu
 				input_config
 				sysctl_menu
-				prepare_configs
-				pull_images
-				up_containers
+				deploy
 				break
 				;;
 			3)
@@ -183,13 +181,7 @@ install_docker() {
 	echo "安装 docker 环境 Checking docker..."
 	# enable ipv6 support
 	sudo mkdir -p /etc/docker
-	sudo mkdir -p /etc/docker
 	cat <<- EOF > /etc/docker/daemon.json
-{
-    "experimental": true,
-    "ip6tables": true
-}
-EOF
 {
     "experimental": true,
     "ip6tables": true
@@ -267,8 +259,15 @@ enable_docker_service() {
 	sudo systemctl enable docker
 }
 
-prepare_configs() {
+deploy() {
 	{
+		prepare_configs
+		docker compose pull 2>&1
+		docker compose up -d 2>&1
+	} | dialog --title "正在部署... Deploying..." --programbox 20 70
+}
+
+prepare_configs() {
 		check_os_release
 		check_docker_env
 		sysctl_config
@@ -277,7 +276,6 @@ prepare_configs() {
 		haproxy_config
 		nginx_config
 		v2ray_config
-	} | dialog --title "正在生成配置... Generating configs..." --programbox 20 70
 }
 
 sysctl_config() {
@@ -455,7 +453,6 @@ EOF
 
 haproxy_config() {
 	echo "写入 HAProxy 配置... Writing HAProxy configs..."
-	echo "写入 HAProxy 配置... Writing HAProxy configs..."
 	# HAProxy TCP Configuration
     mkdir -p ./config/haproxy/
 	cat <<- EOF > ./config/haproxy/haproxy.tcp.cfg
@@ -517,11 +514,14 @@ global
     stats timeout 30s
     daemon
 
+    uid 1000
+    gid 1000
+
     ssl-default-bind-ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384
     ssl-default-bind-ciphersuites TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256
     ssl-default-bind-options no-sslv3 no-tlsv10 no-tlsv11
-	tune.ssl.default-dh-param 2048
-	crt-base /etc/ssl/certs
+    tune.ssl.default-dh-param 2048
+    crt-base /etc/ssl/certs
 	
 defaults
     mode http
@@ -570,7 +570,6 @@ EOF
 
 nginx_config() {
 	echo "写入 nginx 配置... Writing Nginx config..."
-	echo "写入 nginx 配置... Writing Nginx config..."
     mkdir -p ./config/nginx/site-confs/
 	cat <<- EOF > ./config/nginx/site-confs/default.conf
 ## Version 2024/07/16 - Changelog: https://github.com/linuxserver/docker-swag/commits/master/root/defaults/nginx/site-confs/default.conf.sample
@@ -613,7 +612,6 @@ EOF
 }
 
 v2ray_config() {
-	echo "写入 V2Ray 配置... Writing V2Ray config..."
 	echo "写入 V2Ray 配置... Writing V2Ray config..."
     mkdir -p ./config/v2ray/
     PUBLIC_IP=$(timeout 3 curl -s https://ipinfo.io/ip)
@@ -822,7 +820,7 @@ pull_images() {
 
 up_containers() {
 	{
-		sudo docker compose up 2>&1
+		sudo docker compose up -d 2>&1
 	} | dialog --title "正在部署容器..." --programbox 20 70
 }
 
