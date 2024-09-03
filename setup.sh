@@ -1,231 +1,259 @@
 #!/bin/bash
 
-# Menu
-function top_menu {
-	echo ""
-	echo "1. 部署 V2Ray + OpenConnect"
-	echo "2. 升级"
-	echo "3. 卸载"
-	echo "0. 退出"
-	echo ""
-	read -p "请输入数字: " option
+main_menu() {
+	items=(
+		1 "状态 Status" on
+		2 "部署 Deploy" off
+		3 "重启 Restart" off
+		4 "更新 Upgrade" off
+		5 "停止 Stop" off
+		6 "卸载 Uninstall" off
+	)
+	while true; do
+		choice=$(dialog --clear \
+			--title "主菜单" \
+			--radiolist "请选择一个选项：" 15 50 5 \
+			"${items[@]}" \
+			3>&1 1>&2 2>&3)
 
-	if [ "$option" == "0" ]; then
-		exit 0
-	elif [ "$option" == "1" ]; then
-		# install_menu
-		install_all
-	elif [ "$option" == "2" ]; then
-		upgrade
-	elif [ "$option" == "3" ]; then
-		remove
-	else
-		invalid_input
-		install_menu
-	fi
+		# 获取 dialog 退出值
+		exit_status=$?
+		exit_operation $exit_status
+
+		case $choice in
+			1)
+				status_menu
+				;;
+			2)
+				deploy_menu
+				input_config
+				sysctl_menu
+				deploy
+				break
+				;;
+			3)
+				restart_containers
+				;;
+			4)
+				upgrade_containers
+				;;
+			5)
+				stop_containers
+				;;
+			6)
+				down_containers
+				;;
+			*)
+				;;
+		esac
+	done
 }
 
-function install_menu {
-	echo ""
-	echo "部署选项 Deployment Option:"
-	echo ""
-	echo "1. 部署 V2Ray"
-	echo "2. 部署 OpenConnect"
-	echo "3. 全部 Deploy All"
-	echo "0. 返回 Return"
-	echo ""
-	read -p "请输入数字 Please enter a number: " option
-
-	if [ "$option" == "0" ]; then
-		top_menu
-	elif [ "$option" == "1" ]; then
-		install_v2ray
-	elif [ "$option" == "2" ]; then
-		install_ocserv
-	elif [ "$option" == "3" ]; then
-		install_all
-	else
-		invalid_input
-		install_menu
-	fi
-
-	return $option
+status_menu() {
+	sudo docker compose ps 2>&1 | dialog --title "容器状态" --programbox 20 70
 }
 
-# Receive user input and bind to environment variables
-function input_info {
-	echo ""
-	echo "以下所有信息均为必填"
-	echo ""
-	echo "域名填写注意："
-	echo "如 www.example.com，主域名为 example.com，子域名为 www"
-	echo ""
-	read -p "主域名: " domain
-	read -p "V2Ray 子域域名: " v2ray_sub
-	read -p "OpenConnect 子域名: " ocserv_sub
-	echo ""
-	read -p "OpenConnect 用户名: " username
-	read -p "OpenConnect 密码: " password
-	echo ""
-	read -p "邮箱（证书过期/更新失败提醒）: " email
-	echo ""
-	read -p "请确认 (y/n):" confirm
-	# Convert to lowercase
-	confirm=$(echo $confirm | tr '[:upper:]' '[:lower:]')
-	if [ "$confirm" == "y" ]; then
-		export DOMAIN="$domain"
-		export EMAIL="$email"
-		export V2RAY_SUB="$v2ray_sub"
-		export OCSERV_SUB="$ocserv_sub"
-		export USERNAME="$username"
-		export PASSWORD="$password"
-		export V2RAY_DOMAIN=${V2RAY_SUB}.${DOMAIN}
-		export OCSERV_DOMAIN=${OCSERV_SUB}.${DOMAIN}
-	elif [ "$confirm" == "n" ]; then
-		echo ""
-		echo "重新输入 Re-input"
-		input_info
-	else
-		invalid_input
-		exit 1
-	fi
+deploy_menu() {
+	while true; do
+		DEPLOY_CHOICES=$(dialog --clear \
+			--title "选择要部署的组件" \
+			--extra-button --extra-label "Previous" \
+			--checklist "请选择至少一个选项：" 15 50 5 \
+			1 "V2Ray" on \
+			2 "Warp" off \
+			3 "OpenVPN" off \
+			3>&1 1>&2 2>&3)
+
+		exit_status=$?
+		exit_operation $exit_status
+
+		if [ -z "$DEPLOY_CHOICES" ]; then
+			dialog --msgbox "请至少选择一项" 7 50
+		else
+			break
+		fi
+	done
 }
 
-function invalid_input {
-	echo ""
-	echo "\033[31m无效输入 Invalid input\033[0m"
+input_config() {
+	TIMEZONE=${1:-"Asia/Shanghai"}
+	DOMAIN=${2:-""}
+	WARP_KEY=${3:-""}
+	while true; do
+		dialog_args=(
+			--title "V2Ray 配置" \
+			--extra-button --extra-label "Previous" \
+			--mixedform "请输入 V2Ray 配置信息：" 15 50 5 \
+		)
+
+		# 判断 DEPLOY_CHOICES 中是否包含 Warp 选项，如存在则添加 Warp Key 输入框
+		if [[ $DEPLOY_CHOICES == *"2"* ]]; then
+			dialog_args+=(
+				"时区：" 1 1 "$TIMEZONE" 1 12 30 30 0 \
+				"域名：" 2 1 "$DOMAIN" 2 12 30 30 0 \
+				"Warp Key：" 3 1 "$WARP_KEY" 3 12 30 30 0)
+		else
+			dialog_args+=(
+				"时区：" 1 1 "$TIMEZONE" 1 8 30 30 0 \
+				"域名：" 2 1 "$DOMAIN" 2 8 30 30 0)
+		fi
+
+		result=$(dialog "${dialog_args[@]}" 3>&1 1>&2 2>&3)
+
+		exit_status=$?
+		TIMEZONE=$(sed -n '1p' <<< $result)
+		DOMAIN=$(sed -n '2p' <<< $result)
+		WARP_KEY=$(sed -n '3p' <<< $result)
+
+		case $exit_status in
+			1)
+				# Cancel
+				exit 0
+				;;
+			3)
+				# Previous
+				main_menu
+				;;
+			255)
+				# ESC
+				dialog --yesno "是否要退出？" 7 50
+				if [ $? -eq 0 ]; then
+					clean_up
+					exit 0
+				fi
+		esac
+
+		if [ -z "$TIMEZONE" ] || [ -z "$DOMAIN" ]; then
+			dialog --msgbox "所有信息均为必填，请继续输入。" 7 50
+		else
+			break
+		fi
+	done
 }
 
-function check_os_release {
-	echo "checking os release..."
+sysctl_menu() {
+	while true; do
+		dialog --clear \
+			--title "优化 sysctl.conf" \
+			--extra-button --extra-label "Previous" \
+			--yesno "是否优化 sysctl.conf？" 7 50
+
+		exit_status=$?
+		case $exit_status in
+			3)
+				# Previous
+				input_config $TIMEZONE $DOMAIN $WARP_KEY
+				;;
+			255)
+				# ESC
+				dialog --yesno "是否要退出？" 7 50
+				if [ $? -eq 0 ]; then
+					clean_up
+					exit 0
+				fi
+		esac
+
+		dialog --yesno "确认开始部署？" 7 50
+		if [ $? -eq 0 ]; then
+            SYSCTL_OPTIMIZE=$exit_status
+			break
+		fi
+	done
+}
+
+deploy() {
+	{
+		check_os_release
+		check_docker_env
+		prepare_configs
+		pull_images
+		up_containers
+	} | dialog --title "正在部署容器..." --programbox 20 70
+}
+
+check_os_release() {
+	echo "检查发行版 Checking os release..."
 	if [ -f "/etc/os-release" ]; then
 		. /etc/os-release
 		OS=$NAME
 	fi
 }
 
-function prepare_sysconfig {
-	file_path="/etc/security/limits.conf"
-	if [ ! -f "$file_path" ]; then
-		echo "creating $file_path..."
-		sudo touch $file_path
+check_docker_env() {
+	echo "检查 docker 环境 Checking docker ..."
+	if ! command -v docker &> /dev/null
+	then
+		install_docker
 	fi
-	temp_file=$(mktemp)	
-	sudo awk '{if ($1 !~ /^#/ && $1 != "") print "#"$0; else print $0}' $file_path > $temp_file
-	cat >> $temp_file <<- EOF
-	* soft nofile 51200
-	* hard nofile 51200
-	root soft nofile 51200
-	root hard nofile 51200
-	EOF
-	sudo mv $temp_file $file_path
-	ulimit -n 51200
-
-	file_path="/etc/sysctl.conf"
-	if [ ! -f "$file_path" ]; then
-		echo "creating $file_path..."
-		sudo touch $file_path
-	fi
-	temp_file=$(mktemp)
-	sudo awk '{if ($1 !~ /^#/ && $1 != "") print "#"$0; else print $0}' $file_path > $temp_file
-	cat >> $temp_file <<- EOF
-	fs.file-max = 51200
-	net.core.rmem_max = 67108864
-	net.core.wmem_max = 67108864
-	net.core.netdev_max_backlog = 250000
-	net.core.somaxconn = 4096
-	net.ipv4.tcp_syncookies = 1
-	net.ipv4.tcp_tw_reuse = 1
-	net.ipv4.tcp_fin_timeout = 30
-	net.ipv4.tcp_keepalive_time = 1200
-	net.ipv4.ip_local_port_range = 10000 65000
-	net.ipv4.tcp_max_syn_backlog = 8192
-	net.ipv4.tcp_max_tw_buckets = 5000
-	net.ipv4.tcp_fastopen = 3
-	net.ipv4.tcp_mem = 25600 51200 102400
-	net.ipv4.tcp_rmem = 4096 87380 67108864
-	net.ipv4.tcp_wmem = 4096 65536 67108864
-	net.ipv4.tcp_mtu_probing = 1
-	net.core.default_qdisc = fq
-	# net.ipv4.tcp_congestion_control = bbr
-	net.ipv4.tcp_congestion_control = hybla
-	EOF
-	sudo mv $temp_file $file_path
-	sudo sysctl -p
 }
 
-function prepare_os_env {
-	echo "preparing os environment..."
-
+install_docker() {
+	echo "安装 docker 环境 Checking docker..."
+	# enable ipv6 support
 	mkdir -p /etc/docker
-	cat > /etc/docker/daemon.json <<- EOF
+	cat <<- EOF > /etc/docker/daemon.json
 	{
-		"ipv6": true,
-		"fixed-cidr-v6": "2001:db8:1::/64",
 		"experimental": true,
 		"ip6tables": true
 	}
 	EOF
 
 	if [[ "${OS,,}" == *"ubuntu"* ]]; then
+		# Uninstall conflicting packages:
 		for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do sudo apt-get remove $pkg; done;
-		sudo apt update
-		sudo apt install -y ca-certificates curl gnupg
+		sudo apt-get update
+		sudo apt-get install ca-certificates curl
 		sudo install -m 0755 -d /etc/apt/keyrings
-		sudo rm -f /etc/apt/keyrings/docker.gpg
-		curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-		sudo chmod a+r /etc/apt/keyrings/docker.gpg
+		sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+		sudo chmod a+r /etc/apt/keyrings/docker.asc
+
 		echo \
-  "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
-  "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | \
+		"deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+		$(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
 		sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-		sudo apt update
-		sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin wget git uuid-runtime
+		sudo apt-get update
+		sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 	elif [[ "${OS,,}" == *"debian"* ]]; then
-		for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do sudo apt-get remove $pkg; done
-		sudo apt update
-		sudo apt install -y ca-certificates curl gnupg
+		for pkg in docker.io docker-doc docker-compose podman-docker containerd runc; do sudo apt-get remove $pkg; done
+		sudo apt-get update
+		sudo apt-get install ca-certificates curl
 		sudo install -m 0755 -d /etc/apt/keyrings
-		sudo rm -f /etc/apt/keyrings/docker.gpg
-		curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-		sudo chmod a+r /etc/apt/keyrings/docker.gpg
+		sudo curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
+		sudo chmod a+r /etc/apt/keyrings/docker.asc
+
 		echo \
-  "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
-  "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | \
+		"deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian \
+		$(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
 		sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-		sudo apt update
-		sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin wget git uuid-runtime
+		sudo apt-get update
+		sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 	elif [[ "${OS,,}" == *"centos"* ]]; then
 		sudo yum remove docker \
-			      docker-client \
-			      docker-client-latest \
-			      docker-common \
-			      docker-latest \
-			      docker-latest-logrotate \
-			      docker-logrotate \
-			      docker-engine
+				  docker-client \
+				  docker-client-latest \
+				  docker-common \
+				  docker-latest \
+				  docker-latest-logrotate \
+				  docker-logrotate \
+				  docker-engine
 		sudo yum install -y yum-utils
 		sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
 		sudo yum install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin wget git uuid-runtime
-		sudo systemctl start docker
-		sudo systemctl enable docker
 	elif [[ "${OS,,}" == *"fedora"* ]]; then
 		sudo dnf remove docker \
-			      docker-client \
-			      docker-client-latest \
-			      docker-common \
-			      docker-latest \
-			      docker-latest-logrotate \
-			      docker-logrotate \
-			      docker-selinux \
-			      docker-engine-selinux \
-			      docker-engine
+				  docker-client \
+				  docker-client-latest \
+				  docker-common \
+				  docker-latest \
+				  docker-latest-logrotate \
+				  docker-logrotate \
+				  docker-selinux \
+				  docker-engine-selinux \
+				  docker-engine
 		sudo dnf -y install dnf-plugins-core
 		sudo dnf config-manager --add-repo https://download.docker.com/linux/fedora/docker-ce.repo
-		sudo dnf install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin wget git uuid-runtime
-		sudo systemctl start docker
-		sudo systemctl enable docker
 	elif [[ "${OS,,}" == *"arch"* ]]; then
+		sudo dnf install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin wget git uuid-runtime
 		sudo pacman -Syy && sudo pacman -S --noconfirm docker docker-compose wget git
 	else
 		echo "Unsupported operating system"
@@ -233,189 +261,640 @@ function prepare_os_env {
 	fi
 
 	sudo usermod -a -G docker $USER
+	enable_docker_service
 }
 
-function prepare_config {
-	echo "setting up config..."
-	if [ ! -f "./docker-compose.yml.sample" ]; then
-		git clone https://github.com/PandaRyshan/ladder.git
-		cd ladder
+enable_docker_service() {
+	sudo systemctl start docker
+	sudo systemctl enable docker
+}
+
+prepare_configs() {
+	sysctl_config
+	env_config
+	docker_compose_config
+	haproxy_config
+	nginx_config
+	v2ray_config
+}
+
+sysctl_config() {
+    if [[ "$SYSCTL_OPTIMIZE" == 0 ]]; then
+        echo "优化网络设置 Updating sysctl config..."
+        if ! grep -q "* soft nofile 51200" /etc/security/limits.conf; then
+            sudo tee -a /etc/security/limits.conf <<- EOF
+* soft nofile 51200
+* hard nofile 51200
+
+root soft nofile 51200
+root hard nofile 51200
+EOF
+        fi
+
+        sudo mkdir -p /etc/sysctl.d/
+        sudo tee /etc/sysctl.d/50-network.conf <<- EOF
+fs.file-max = 51200
+
+net.core.rmem_max = 67108864
+net.core.wmem_max = 67108864
+net.core.netdev_max_backlog = 250000
+net.core.somaxconn = 4096
+
+net.ipv4.tcp_syncookies = 1
+net.ipv4.tcp_tw_reuse = 1
+net.ipv4.tcp_fin_timeout = 30
+net.ipv4.tcp_keepalive_time = 1200
+net.ipv4.ip_local_port_range = 10000 65000
+net.ipv4.tcp_max_syn_backlog = 8192
+net.ipv4.tcp_max_tw_buckets = 5000
+net.ipv4.tcp_fastopen = 3
+net.ipv4.tcp_mem = 25600 51200 102400
+net.ipv4.tcp_rmem = 4096 87380 67108864
+net.ipv4.tcp_wmem = 4096 65536 67108864
+net.ipv4.tcp_mtu_probing = 1
+
+net.core.default_qdisc = fq
+# net.ipv4.tcp_congestion_control = bbr
+net.ipv4.tcp_congestion_control = hybla
+EOF
+
+        ulimit -n 51200
+        sudo sysctl --system
+    fi
+}
+
+env_config() {
+	cat <<- EOF > .env
+TZ=$timezone
+DOMAIN=$domain
+WARP_KEY=$warp_key
+EOF
+}
+
+docker_compose_config() {
+	if [[ "$DEPLOY_CHOICES" == *"1"* ]]; then
+		echo "下载 geodata. Downloading geodata..."
+		mkdir -p ./config/geodata
+		curl -sLo ./config/geodata/geoip.dat https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat
+		curl -sLo ./config/geodata/geosite.dat https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat
 	fi
-	cat > .env <<- EOENV
-		TZ=Asia/Shanghai
-		EMAIL=${EMAIL}
-		DOMAIN=${DOMAIN}
-		V2RAY_SUB=${V2RAY_SUB}
-		OCSERV_SUB=${OCSERV_SUB}
-		USERNAME=${USERNAME}
-		PASSWORD=${PASSWORD}
-	EOENV
 
-	pwd
-	# set up timezone
-	ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
-	sudo timedatectl set-timezone Asia/Shanghai
+	echo "写入 docker 配置. Writing docker-compose config..."
+    PUID=$(id -u)
+    PGID=$(id -g)
+	cat <<- EOF > docker-compose.yaml
+services:
 
-	# set up docker-compose.yml
-	cp -f ./docker-compose.yml.sample ./docker-compose.yml
+  haproxy_tcp:
+    image: pandasrun/haproxy:latest
+    container_name: haproxy_tcp
+    volumes:
+      - ./config/haproxy/haproxy.tcp.cfg:/usr/local/etc/haproxy/haproxy.cfg
+      - ./config/certs/live/${DOMAIN}:/etc/ssl/certs
+    networks:
+      - ipv6
+    ports:
+      - 443:443/tcp
+    restart: unless-stopped
 
-	# set up haproxy haproxy.cfg
-	cp -f ./config/haproxy/haproxy.tcp.cfg.sample ./config/haproxy/haproxy.tcp.cfg
-	cp -f ./config/haproxy/haproxy.http.cfg.sample ./config/haproxy/haproxy.http.cfg
-	sed -i "s/<your-ocserv-domain>/${OCSERV_DOMAIN}/g" ./config/haproxy/haproxy.tcp.cfg
-	sed -i "s/<your-v2ray-domain>/${V2RAY_DOMAIN}/g" ./config/haproxy/haproxy.tcp.cfg
+  haproxy_http:
+    image: pandasrun/haproxy:latest
+    container_name: haproxy_http
+    volumes:
+      - ./config/haproxy/haproxy.http.cfg:/usr/local/etc/haproxy/haproxy.cfg
+      - ./config/certs/live/${DOMAIN}:/etc/ssl/certs
+    networks:
+      - ipv6
+    restart: unless-stopped
 
-	# set up v2ray config.json
+  nginx:
+    image: linuxserver/swag:latest
+    container_name: nginx
+    cap_add:
+      - NET_ADMIN
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TIMEZONE}
+      - URL=${DOMAIN}
+      - VALIDATION=http
+      - EMAIL=${EMAIL}
+    volumes:
+      - ./config/nginx:/config
+      - ./config/certs:/config/etc/letsencrypt
+      - ./config/www:/config/www
+    networks:
+      - ipv6
+    ports:
+      - 80:80
+    restart: unless-stopped
+
+EOF
+
+	if [[ "$DEPLOY_CHOICES" == *"1"* ]]; then
+		cat <<- EOF >> docker-compose.yaml
+  v2ray:
+    image: pandasrun/v2ray:latest
+    container_name: v2ray
+    volumes:
+      - ./config/v2ray/config.json:/etc/v2ray/config.json
+      - ./config/geodata:/usr/share/v2ray
+      - ./config/certs:/etc/letsencrypt
+    networks:
+      - ipv6
+    restart: unless-stopped
+
+EOF
+	fi
+
+	if [[ "$DEPLOY_CHOICES" == *"2"* ]]; then
+		cat <<- EOF >> docker-compose.yaml
+  warp:
+    image: pandasrun/warp:latest
+    container_name: warp
+    environment:
+      - WARP_KEY=${WARP_KEY}
+    volumes:
+      - ./config/warp:/var/lib/cloudflare-warp
+    networks:
+      - ipv6
+    restart: unless-stopped
+
+EOF
+	fi
+
+	if [[ "$DEPLOY_CHOICES" == *"3"* ]]; then
+		cat <<- EOF >> docker-compose.yaml
+  openvpn:
+    image: pandasrun/openvpn:latest
+    container_name: openvpn
+    environment:
+      - DOMAIN=${DOMAIN}
+    volumes:
+      - ./config/openvpn/server:/etc/openvpn/server
+      - ./config/openvpn/client:/root/client-configs
+    networks:
+      - ipv6
+    restart: unless-stopped
+
+EOF
+	fi
+
+	cat <<- EOF >> docker-compose.yaml
+networks:
+  ipv6:
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: 2001:0DB9::/112
+EOF
+
+}
+
+haproxy_config() {
+	# HAProxy TCP Configuration
+    mkdir -p ./config/haproxy/
+	cat <<- EOF > ./config/haproxy/haproxy.tcp.cfg
+global
+    log stdout format raw local0 info
+    stats timeout 30s
+    daemon
+
+    ssl-default-bind-options no-sslv3 no-tlsv10 no-tlsv11
+    ssl-server-verify none
+
+defaults
+    mode tcp
+    log global
+    option tcplog
+    option tcpka
+	option redispatch
+    option dontlognull
+    timeout connect 5s
+    timeout client 300s
+    timeout server 300s
+	timeout queue 1m
+
+frontend tls-in
+    bind :::443 v4v6
+
+    tcp-request inspect-delay 5s
+    tcp-request content accept if { req_ssl_hello_type 1 }
+
+    acl has_sni req.ssl_sni -m found
+
+EOF
+
+	if [[ "$DEPLOY_CHOICES" == *"3" ]]; then
+		cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
+    use_backend openvpn if !has_sni
+EOF
+	fi
+
+	cat <<-EOF >> ./config/haproxy/haproxy.tcp.cfg
+    default_backend haproxy_http
+
+backend haproxy_http
+    server haproxy haproxy_http:443
+
+EOF
+
+	if [[ "$DEPLOY_CHOICES" == *"3"* ]]; then
+		cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
+backend openvpn
+    server openvpn openvpn:443
+EOF
+	fi
+
+	# HAProxy HTTP Configuration
+	cat <<- EOF > ./config/haproxy/haproxy.http.cfg
+global
+    log stdout format raw local0 info
+    stats timeout 30s
+    daemon
+
+    ssl-default-bind-ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384
+    ssl-default-bind-ciphersuites TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256
+    ssl-default-bind-options no-sslv3 no-tlsv10 no-tlsv11
+	tune.ssl.default-dh-param 2048
+	crt-base /etc/ssl/certs
+	
+defaults
+    mode http
+    log global
+    option http-keep-alive
+    option httplog
+    option dontlognull
+    timeout connect 5s
+    timeout client 300s
+    timeout server 300s
+
+frontend http-in
+    bind :::443 v4v6 ssl crt priv-fullchain-bundle.pem proto h2 alpn h2,http/1.1
+    bind quic4@:443 v4v6 ssl crt priv-fullchain-bundle.pem alpn h3
+
+    tcp-request inspect-delay 5s
+    http-request redirect scheme https unless { ssl_fc }
+    http-after-response add-header alt-svc 'h3=":443"; ma=900'
+
+EOF
+
+	if [[ "$DEPLOY_CHOICES" == *"1"* ]]; then
+		cat <<- EOF >> ./config/haproxy/haproxy.http.cfg
+    acl gRPC hdr(content-type) -i application/grpc
+
+    use_backend v2ray_grpc if gRPC
+EOF
+	fi
+
+	cat <<- EOF >> ./config/haproxy/haproxy.http.cfg
+    default_backend web
+
+backend web
+    server web nginx:443 alpn h2 check
+
+EOF
+
+	if [[ "$DEPLOY_CHOICES" == *"1"* ]]; then
+		cat <<- EOF >> ./config/haproxy/haproxy.http.cfg
+backend v2ray_grpc
+    server v2ray v2ray:10088 proto h2 check
+EOF
+	fi
+
+}
+
+nginx_config() {
+    mkdir -p ./config/nginx/site-confs/
+	cat <<- EOF > ./config/nginx/site-confs/default.conf
+## Version 2024/07/16 - Changelog: https://github.com/linuxserver/docker-swag/commits/master/root/defaults/nginx/site-confs/default.conf.sample
+
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+	# SSL enabled in HAProxy, no need to enable in nginx
+    listen 443 default_server;
+    listen [::]:443 default_server;
+
+    server_name _;
+
+    include /config/nginx/ssl.conf;
+
+    root /config/www;
+    index index.html index.htm index.php;
+
+    include /config/nginx/proxy-confs/*.subfolder.conf;
+
+    location / {
+        try_files $uri $uri/ /index.html /index.htm /index.php$is_args$args;
+    }
+
+    location ~ /\.ht {
+        deny all;
+    }
+}
+
+include /config/nginx/proxy-confs/*.subdomain.conf;
+proxy_cache_path cache/ keys_zone=auth_cache:10m;
+EOF
+}
+
+v2ray_config() {
+    mkdir -p ./config/v2ray/
+    PUBLIC_IP=$(timeout 3 curl -s https://ipinfo.io/ip)
+    if [ -z "$PUBLIC_IP" ]; then
+        PUBLIC_IP=$(timeout 3 curl -s https://6.ipinfo.io/ip)
+        if [ -z "$PUBLIC_IP" ]; then
+            PUBLIC_IP="127.0.0.1"
+        fi
+    fi
 	UUID=$(uuidgen)
 	SERVICE_NAME=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
-	PUBLIC_IP=$(timeout 3 curl -s https://ipinfo.io/ip || echo "")
-	if [ -z "$PUBLIC_IP" ]; then
-		PUBLIC_IP=$(timeout 3 curl -s https://6.ipinfo.io/ip || echo "")
-		if [ -z "$PUBLIC_IP" ]; then
-			echo "Failed to get IP address"
-			exit 1
-		fi
-	fi
-	cp -f ./config/v2ray/config.json.sample ./config/v2ray/config.json
-	sed -i "s/<your-host-ip>/${PUBLIC_IP}/g" ./config/v2ray/config.json
-	sed -i "s/<your-v2ray-domain>/${V2RAY_DOMAIN}/g" ./config/v2ray/config.json
-	sed -i "s/<your-uuid>/${UUID}/g" ./config/v2ray/config.json
-	sed -i "s/<service-name>/${SERVICE_NAME}/g" ./config/v2ray/config.json
-	# download latest geoip.dat and geosite.dat to ./geodata directory
-	mkdir -p ./config/geodata
-	wget -O ./config/geodata/geoip.dat https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat
-	wget -O ./config/geodata/geosite.dat https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat
-
-	# set up ocserv config
-	# after certs is generated, there's only one group of certs, all subdomains are included
-	# and the certs directory name is the first subdomain
-	cp -f ./config/ocserv/ocserv.conf.sample ./config/ocserv/ocserv.conf
-	sed -i "s/<your-ocserv-domain>/${V2RAY_DOMAIN}/g" ./config/ocserv/ocserv.conf
+	cat <<- EOF > ./config/v2ray/config.json
+{
+    "log": {
+        "loglevel": "warning"
+    },
+    "dns": {
+        "hosts": {
+            "geosite:category-ads-all": "127.0.0.1"
+        },
+        "servers": [
+            "1.1.1.1",
+            "8.8.8.8",
+            "https+local://cloudflare-dns.com/dns-query",
+            "https+local://dns.google/dns-query"
+        ],
+        "clientIp": "${PUBLIC_IP}"
+    },
+    "inbounds": [
+        {
+            "tag": "tcp",
+            "protocol": "vmess",
+            "listen": "0.0.0.0",
+            "port": 10010,
+            "settings": {
+                "clients": [
+                    {
+                        "id": "${UUID}"
+                    }
+                ]
+            },
+            "streamSettings": {
+                "network": "tcp",
+                "security": "tls",
+                "tlsSettings": {
+                    "certificates": [{
+                        "certificateFile": "/etc/letsencrypt/live/${DOMAIN}/priv-fullchain-bundle.pem",
+                        "keyFile": "/etc/letsencrypt/live/${DOMAIN}/priv-fullchain-bundle.pem"
+                    }]
+                }
+            }
+        },
+        {
+            "tag": "h2",
+            "protocol": "vmess",
+            "listen": "0.0.0.0",
+            "port": 10086,
+            "settings": {
+                "clients": [
+                    {
+                        "id": "${UUID}"
+                    }
+                ]
+            },
+            "streamSettings": {
+                "network": "h2"
+            }
+        },
+        {
+            "tag": "grpc",
+            "protocol": "vmess",
+            "listen": "0.0.0.0",
+            "port": 10088,
+            "settings": {
+                "clients": [
+                    {
+                        "id": "${UUID}"
+                    }
+                ]
+            },
+            "streamSettings": {
+                "network": "grpc",
+                "grpcSettings": {
+                    "serviceName": "${SERVICE_NAME}"
+                }
+            }
+        },
+        {
+            "tag": "quic",
+            "protocol": "vmess",
+            "listen": "0.0.0.0",
+            "port": 10000,
+            "settings": {
+                "clients": [
+                    {
+                        "id": "${UUID}"
+                    }
+                ]
+            },
+            "streamSettings": {
+                "network": "quic",
+                "quicSettings": {
+                    "security": "chacha20-poly1305",
+                    "key": "",
+                    "header": {
+                        "type": "none"
+                    }
+                }
+            }
+        },
+        {
+            "tag": "dns-in",
+            "protocol": "dokodemo-door",
+            "port": 53,
+            "settings": {
+                "address": "1.1.1.1",
+                "port": 53,
+                "network": "tcp,udp",
+                "userLevel": 1
+            }
+        }
+    ],
+    "outbounds": [
+        // first one is the default option
+        // could be omitted in "routing" block below
+        {
+            "tag": "freedom",
+            "protocol": "freedom"
+        },
+        {
+            "tag": "cf-warp",
+            "protocol": "socks",
+            "settings": {
+                "servers": [
+                    {
+                        "address": "warp",
+                        "port": 40001
+                    }
+                ]
+            }
+        },
+        {
+            "tag": "blocked",
+            "protocol": "blackhole"
+        },
+        {
+            "tag": "dns-out",
+            "protocol": "dns"
+        }
+    ],
+    "routing": {
+        "domainStrategy": "AsIs",
+        "domainMatcher": "mph",
+        "rules": [
+            {
+                "outboundTag": "cf-warp",
+                "type": "field",
+                "domain": [
+                    "geosite:openai"
+                ]
+            },
+            {
+                "outboundTag": "blocked",
+                "type": "field",
+                "domain": [
+                    "geosite:category-ads-all"
+                ]
+            },
+            {
+                "outboundTag": "blocked",
+                "type": "field",
+                "protocol": [
+                    "bittorrent"
+                ]
+            }
+        ]
+    },
+    "policy": {
+        "system": {
+            "statsInboundUplink": false,
+            "statsInboundDownlink": false,
+            "statsOutboundUplink": false,
+            "statsOutboundDownlink": false
+        },
+        "levels": {
+            "0": {
+                "handshake": 4,
+                "connIdle": 300,
+                "uplinkOnly": 2,
+                "downlinkOnly": 5,
+                "statsUserUplink": false,
+                "statsUserDownlink": false,
+                "bufferSize": 10240
+            }
+        }
+    }
+}
+EOF
 }
 
-function start_containers {
-	echo "starting containers..."
-	# sg docker -c "
-	# docker compose up -d
-	# "
-	sudo docker compose up -d
+pull_images() {
+	docker compose pull
 }
 
-function restart_containers {
-	echo "restarting containers..."
-	sudo docker compose restart haproxy_http haproxy_tcp
+up_containers() {
+	{
+		sudo docker compose up -d 2>&1
+	} | dialog --title "正在部署容器..." --programbox 20 70
 }
 
-function cleanup {
-	if [ -f "../setup.sh" ]; then
-		rm ../setup.sh
-	fi
+start_containers() {
+	{
+		sudo docker compose start 2>&1
+	} | dialog --title "正在启动容器..." --programbox 20 70
 }
 
-function output_config {
-	echo "
-	##################################################
-	  Host: ${V2RAY_DOMAIN}
-	  Network: grpc
-	  UUID: ${UUID}
-	  ServiceName: ${SERVICE_NAME}
-	##################################################
-
-	Install Finished.
-	" > ./v2ray_info.txt
-
-	cat ./v2ray_info.txt
+upgrade_containers() {
+	{
+		sudo docker compose pull 2>&1
+	} | dialog --title "正在更新容器..." --programbox 20 70
 }
 
-function install_all {
-	cd_script_dir
-	check_os_release
-	input_info
-	prepare_sysconfig
-	prepare_os_env
-	prepare_config
-	start_containers
-	cleanup
-	output_config
+stop_containers() {
+	{
+		sudo docker compose stop 2>&1
+	} | dialog --title "正在停止容器..." --programbox 20 70
 }
 
-function upgrade {
-	cd_script_dir
-	if [ ! -f "./docker-compose.yml" ]; then
-		echo "No docker-compose.yml found"
-		exit 1
-	fi
-	git stash && git fetch && git pull
-	sudo docker pull pandasrun/v2fly-core
-	sudo docker pull pandasrun/ocserv
-	sudo docker compose up -d v2ray ocserv --force-recreate
-	sudo docker image prune -f
+restart_containers() {
+	{
+		sudo docker compose restart 2>&1
+	} | dialog --title "正在重启容器..." --programbox 20 70
 }
 
-function stop {
-	cd_script_dir
-	if [ ! -f "./docker-compose.yml" ]; then
-		echo "No docker-compose.yml found"
-		exit 1
-	fi
-	sudo docker compose stop
+down_containers() {
+	{
+		sudo docker compose down 2>&1
+	} | dialog --title "正在卸载容器..." --programbox 20 70
 }
 
-function remove {
-	cd_script_dir
-	if [ ! -f "./docker-compose.yml" ]; then
-		echo "No docker-compose.yml found"
-		exit 1
-	fi
-	sudo docker compose down
-	sudo docker image prune -f
+clean_up() {
+	# 清理临时文件
+	clear
+	rm $tempfile $logfile
 }
 
-function help {
-	echo "Usage: setup.sh [OPTION]..."
-	echo "Setup V2Ray and OpenConnect on Linux"
-	echo ""
-	echo "  -i, --install	install V2Ray and OpenConnect"
-	echo "  -u, --upgrade	upgrade V2Ray and OpenConnect"
-	echo "  -r, --run		run V2Ray and OpenConnect"
-	echo "  -s, --stop		stop V2Ray and OpenConnect"
-	echo "  -c, --clean		stop & clean V2Ray and OpenConnect"
-	echo "  -h, --help		display this help and exit"
-}
-
-function cd_script_dir {
-	cd "$(dirname "$0")"
-}
-
-
-cd_script_dir
-
-while [[ $# -gt 0 ]]; do
-	case $1 in
-		-i|--install)
-			install_menu
+exit_operation() {
+	exit_status=$1
+	case $exit_status in
+		1)
+			# Cancel
+			clean_up
+			exit 0
 			;;
-		-u|--upgrade)
-			upgrade
+		3)
+			# Previous
+			main_menu
 			;;
-		-r|--run)
-			start_containers
-			;;
-		-s|--stop)
-			stop
-			;;
-		-c|--clean|--uninstall|--remove)
-			remove
-			;;
-		-h|--help)
-			help
-			;;
-		*)
-			echo "Invalid option: -$1"
-			exit 1
-			;;
+		255)
+			# ESC
+			dialog --yesno "是否要退出？" 7 50
+			if [ $? -eq 0 ]; then
+				clean_up
+				exit 0
+			fi
 	esac
-	exit 0
-done
+}
 
-top_menu
+# 主程序
+
+# 如果没有 dialog 则安装
+if ! command -v dialog &> /dev/null
+then
+	echo "安装 dialog"
+	if [[ "${OS,,}" == *"debian"* ]] || [[ "${OS,,}" == *"ubuntu"* ]]; then
+		sudo apt-get update && sudo apt-get install -y dialog
+	elif [[ "${OS,,}" == *"centos"* ]] || [[ "${OS,,}" == *"fedora"* ]]; then
+		sudo dnf install -y dialog
+	elif [[ "${OS,,}" == *"arch"* ]]; then
+		sudo pacman -Sy --noconfirm dialog
+	else
+		echo "不支持的操作系统"
+		exit 1
+	fi
+fi
+
+tempfile=$(mktemp)
+logfile=$(mktemp)
+
+cd "$(dirname "$0")"
+main_menu
+clean_up
