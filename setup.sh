@@ -270,12 +270,43 @@ deploy() {
 prepare_configs() {
 		check_os_release
 		check_docker_env
+		enable_docker_ipv6
 		sysctl_config
 		env_config
 		docker_compose_config
 		haproxy_config
 		nginx_config
 		v2ray_config
+}
+
+enable_docker_ipv6() {
+    if [ ! -f "/etc/docker/daemon.json" ] || [ ! -s "/etc/docker/daemon.json" ]; then
+        sudo mkdir -p /etc/docker
+        sudo tee /etc/docker/daemon.json > /dev/null <<EOF
+{
+    "experimental": true,
+    "ip6tables": true
+}
+EOF
+    else
+        content=$(cat /etc/docker/daemon.json)
+        if [[ ! $content =~ \{.*\} ]]; then
+            sudo tee /etc/docker/daemon.json > /dev/null <<EOF
+{
+    "experimental": true,
+    "ip6tables": true
+}
+EOF
+        else
+            if ! grep -q "experimental" /etc/docker/daemon.json; then
+                sudo sed -i 's/^{/{\n    "experimental": true,/' /etc/docker/daemon.json
+            fi
+            if ! grep -q "ip6tables" /etc/docker/daemon.json; then
+                sudo sed -i 's/^{/{\n    "ip6tables": true,/' /etc/docker/daemon.json
+            fi
+            sudo sed -i 's/,\s*}/\n}/' /etc/docker/daemon.json
+        fi
+    fi
 }
 
 sysctl_config() {
