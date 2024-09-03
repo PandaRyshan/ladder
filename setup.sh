@@ -118,7 +118,6 @@ input_config() {
 				# ESC
 				dialog --yesno "是否要退出？" 7 50
 				if [ $? -eq 0 ]; then
-					clean_up
 					exit 0
 				fi
 		esac
@@ -148,7 +147,6 @@ sysctl_menu() {
 				# ESC
 				dialog --yesno "是否要退出？" 7 50
 				if [ $? -eq 0 ]; then
-					clean_up
 					exit 0
 				fi
 		esac
@@ -268,7 +266,6 @@ deploy() {
 }
 
 prepare_configs() {
-		check_os_release
 		check_docker_env
 		enable_docker_ipv6
 		sysctl_config
@@ -545,9 +542,6 @@ global
     stats timeout 30s
     daemon
 
-    uid 1000
-    gid 1000
-
     ssl-default-bind-ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384
     ssl-default-bind-ciphersuites TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256
     ssl-default-bind-options no-sslv3 no-tlsv10 no-tlsv11
@@ -603,7 +597,8 @@ nginx_config() {
 	echo "写入 nginx 配置... Writing Nginx config..."
     mkdir -p ./config/nginx/site-confs/
 	cat <<- EOF > ./config/nginx/site-confs/default.conf
-## Version 2024/07/16 - Changelog: https://github.com/linuxserver/docker-swag/commits/master/root/defaults/nginx/site-confs/default.conf.sample
+## Version 2024/07/16 - https://github.com/linuxserver/docker-swag/blob/master/root/defaults/nginx/site-confs/default.conf.sample
+## Changelog: https://github.com/linuxserver/docker-swag/commits/master/root/defaults/nginx/site-confs/default.conf.sample
 
 server {
     listen 80 default_server;
@@ -885,18 +880,11 @@ down_containers() {
 	} | dialog --title "正在卸载容器..." --programbox 20 70
 }
 
-clean_up() {
-	# 清理临时文件
-	clear
-	rm $tempfile $logfile
-}
-
 exit_operation() {
 	exit_status=$1
 	case $exit_status in
 		1)
 			# Cancel
-			clean_up
 			exit 0
 			;;
 		3)
@@ -907,7 +895,6 @@ exit_operation() {
 			# ESC
 			dialog --yesno "是否要退出？" 7 50
 			if [ $? -eq 0 ]; then
-				clean_up
 				exit 0
 			fi
 	esac
@@ -916,6 +903,8 @@ exit_operation() {
 # 主程序
 
 # 如果没有 dialog 则安装
+check_os_release
+
 if ! command -v dialog &> /dev/null
 then
 	echo "安装 dialog"
@@ -931,9 +920,5 @@ then
 	fi
 fi
 
-tempfile=$(mktemp)
-logfile=$(mktemp)
-
 cd "$(dirname "$0")"
 main_menu
-clean_up
