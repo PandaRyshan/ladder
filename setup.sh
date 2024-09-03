@@ -190,13 +190,13 @@ check_docker_env() {
 install_docker() {
 	echo "安装 docker 环境 Checking docker..."
 	# enable ipv6 support
-	mkdir -p /etc/docker
+	sudo mkdir -p /etc/docker
 	cat <<- EOF > /etc/docker/daemon.json
-	{
-		"experimental": true,
-		"ip6tables": true
-	}
-	EOF
+{
+    "experimental": true,
+    "ip6tables": true
+}
+EOF
 
 	if [[ "${OS,,}" == *"ubuntu"* ]]; then
 		# Uninstall conflicting packages:
@@ -452,6 +452,7 @@ EOF
 }
 
 haproxy_config() {
+	echo "写入 HAProxy 配置... Writing HAProxy configs..."
 	# HAProxy TCP Configuration
     mkdir -p ./config/haproxy/
 	cat <<- EOF > ./config/haproxy/haproxy.tcp.cfg
@@ -565,6 +566,7 @@ EOF
 }
 
 nginx_config() {
+	echo "写入 nginx 配置... Writing Nginx config..."
     mkdir -p ./config/nginx/site-confs/
 	cat <<- EOF > ./config/nginx/site-confs/default.conf
 ## Version 2024/07/16 - Changelog: https://github.com/linuxserver/docker-swag/commits/master/root/defaults/nginx/site-confs/default.conf.sample
@@ -607,6 +609,7 @@ EOF
 }
 
 v2ray_config() {
+	echo "写入 V2Ray 配置... Writing V2Ray config..."
     mkdir -p ./config/v2ray/
     PUBLIC_IP=$(timeout 3 curl -s https://ipinfo.io/ip)
     if [ -z "$PUBLIC_IP" ]; then
@@ -807,7 +810,9 @@ EOF
 }
 
 pull_images() {
-	docker compose pull
+	{
+		docker compose pull -d 2>&1
+	} | dialog --title "正在拉取镜像..." --programbox 20 70
 }
 
 up_containers() {
