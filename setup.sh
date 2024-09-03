@@ -253,8 +253,8 @@ EOF
 }
 
 enable_docker_service() {
-	sudo systemctl start docker
-	sudo systemctl enable docker
+	sudo systemctl enable docker 2>&1
+	sudo systemctl start docker 2>&1
 }
 
 deploy() {
@@ -368,8 +368,6 @@ docker_compose_config() {
 	fi
 
 	echo "写入 docker 配置. Writing docker-compose config..."
-    PUID=$(id -u)
-    PGID=$(id -g)
 	cat <<- EOF > docker-compose.yaml
 services:
 
@@ -401,8 +399,8 @@ services:
     cap_add:
       - NET_ADMIN
     environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
+      - PUID=99
+      - PGID=99
       - TZ=${TIMEZONE}
       - URL=${DOMAIN}
       - VALIDATION=http
