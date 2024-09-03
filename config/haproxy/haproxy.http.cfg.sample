@@ -21,7 +21,8 @@ global
 defaults
     mode http
     log global
-    option tcplog
+    option httplog
+    option http-keep-alive
     option dontlognull
     timeout connect 5s
     timeout client 300s
@@ -38,9 +39,7 @@ frontend http-in
     acl gRPC hdr(content-type) -i application/grpc
 
     use_backend v2ray_grpc if gRPC
-    # if you want to use http proxy, uncomment follow line
-    # use_backend v2ray_h2 if HTTP_2.0
-    use_backend web if HTTP
+    default_backend web
 
 backend web
     server web nginx:443 alpn h2 check
