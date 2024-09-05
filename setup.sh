@@ -865,6 +865,20 @@ prepare_workdir() {
 }
 
 output_v2ray_config() {
+	echo ""
+	echo "配置信息如下，已生成为文本 ${pwd}/info.txt"
+	echo
+	echo "V2Ray:"
+	echo "-----------------------------------------------"
+	echo "| Domain: ${DOMAIN}                           |"
+	echo "| Protocol: grpc                              |"
+	echo "| UUID: ${UUID}                               |"
+	echo "| ServiceName: ${SERVICE_NAME}                |"
+	echo "| TLS: Yes                                    |"
+	echo "-----------------------------------------------"
+	echo
+	echo "OpenVPN 配置可通过地址 https://${DOMAIN}/client-xxxx.ovpn 的方式下载"
+
 	cat <<EOF > ${pwd}/info.txt
 
 配置信息如下，已生成为文本 ${pwd}/info.txt
