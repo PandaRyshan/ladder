@@ -500,19 +500,6 @@ v2ray_config() {
     },
     "inbounds": [
         {
-            "tag": "tcp",
-            "protocol": "vmess",
-            "listen": "0.0.0.0",
-            "port": 10010,
-            "settings": {
-                "clients": [
-                    {
-                        "id": "${UUID}"
-                    }
-                ]
-            },
-        },
-        {
             "tag": "h2",
             "protocol": "vmess",
             "listen": "0.0.0.0",
