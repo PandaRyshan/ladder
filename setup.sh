@@ -259,10 +259,12 @@ enable_docker_service() {
 
 deploy() {
 	{
+		prepare_workdir
 		prepare_configs
 		docker compose pull 2>&1
 		docker compose up -d 2>&1
-	} | dialog --title "正在部署... Deploying..." --programbox 20 70
+		output_v2ray_config
+	} | dialog --title "正在部署... Deploying..." --programbox 30 100
 }
 
 prepare_configs() {
@@ -382,16 +384,6 @@ services:
     ports:
       - 443:443/tcp
     restart: unless-stopped
-
-#  haproxy_http:
-#    image: pandasrun/haproxy:latest
-#    container_name: haproxy_http
-#    volumes:
-#      - ./config/haproxy/haproxy.http.cfg:/usr/local/etc/haproxy/haproxy.cfg
-#      - ./config/certs/live/${DOMAIN}:/etc/ssl/certs
-#    networks:
-#      - ipv6
-#    restart: unless-stopped
 
   nginx:
     image: linuxserver/swag:latest
@@ -519,16 +511,6 @@ v2ray_config() {
                     }
                 ]
             },
-            "streamSettings": {
-                "network": "tcp",
-                "security": "tls",
-                "tlsSettings": {
-                    "certificates": [{
-                        "certificateFile": "/etc/letsencrypt/live/${DOMAIN}/priv-fullchain-bundle.pem",
-                        "keyFile": "/etc/letsencrypt/live/${DOMAIN}/priv-fullchain-bundle.pem"
-                    }]
-                }
-            }
         },
         {
             "tag": "h2",
@@ -720,10 +702,10 @@ EOF
 	fi
 
 	cat <<-EOF >> ./config/haproxy/haproxy.tcp.cfg
-    use_backend haproxy_http if has_sni
+    use_backend nginx if has_sni
 
-backend haproxy_http
-    server haproxy_http haproxy_http:443
+backend nginx
+    server nginx nginx:443
 
 EOF
 
@@ -734,67 +716,13 @@ backend openvpn
 EOF
 	fi
 
-#	# HAProxy HTTP Configuration
-#	cat <<- EOF > ./config/haproxy/haproxy.http.cfg
-#global
-#    log stdout format raw local0 info
-#    stats timeout 30s
-#    daemon
-#
-#    ssl-default-bind-ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384
-#    ssl-default-bind-ciphersuites TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256
-#    ssl-default-bind-options no-sslv3 no-tlsv10 no-tlsv11
-#    tune.ssl.default-dh-param 2048
-#    crt-base /etc/ssl/certs
-#	
-#defaults
-#    mode http
-#    log global
-#    option http-keep-alive
-#    option httplog
-#    option dontlognull
-#    timeout connect 5s
-#    timeout client 300s
-#    timeout server 300s
-#
-#frontend http-in
-#    bind :::443 v4v6 ssl crt priv-fullchain-bundle.pem proto h2 alpn h2,http/1.1
-#    bind quic4@:443 v4v6 ssl crt priv-fullchain-bundle.pem alpn h3
-#
-#    tcp-request inspect-delay 5s
-#    http-request redirect scheme https unless { ssl_fc }
-#    http-after-response add-header alt-svc 'h3=":443"; ma=900'
-#
-#EOF
-#
-#	if [[ "$DEPLOY_CHOICES" == *"1"* ]]; then
-#		cat <<- EOF >> ./config/haproxy/haproxy.http.cfg
-#    acl gRPC hdr(content-type) -i application/grpc
-#
-#    use_backend v2ray_grpc if gRPC
-#EOF
-#	fi
-#
-#	cat <<- EOF >> ./config/haproxy/haproxy.http.cfg
-#    default_backend web
-#
-#backend web
-#    server web nginx:443 alpn h2 check
-#
-#EOF
-#
-#	if [[ "$DEPLOY_CHOICES" == *"1"* ]]; then
-#		cat <<- EOF >> ./config/haproxy/haproxy.http.cfg
-#backend v2ray_grpc
-#    server v2ray v2ray:10088 proto h2 check
-#EOF
-#	fi
-
 }
 
 nginx_config() {
 	echo "写入 nginx 配置... Writing Nginx config..."
     mkdir -p ./config/nginx/site-confs/
+	mkdir -p ./config/www/
+	curl -sLo ./config/www/index.html https://raw.githubusercontent.com/PandaRyshan/ladder/main/config/www/index.html
 	cat <<- EOF > ./config/nginx/site-confs/default.conf
 ## Version 2024/07/16 - https://github.com/linuxserver/docker-swag/blob/master/root/defaults/nginx/site-confs/default.conf.sample
 ## Changelog: https://github.com/linuxserver/docker-swag/commits/master/root/defaults/nginx/site-confs/default.conf.sample
@@ -809,7 +737,6 @@ server {
 }
 
 server {
-	# SSL enabled in HAProxy, no need to enable in nginx
     listen 443 ssl default_server;
     listen [::]:443 ssl default_server;
 
@@ -929,9 +856,32 @@ exit_operation() {
 	esac
 }
 
-# 主程序
+prepare_workdir() {
+	echo "创建 ladder 工作目录..."
+	cd "$(dirname "$0")"
+	mkdir -p ./ladder && cd ./ladder
+}
 
-# 如果没有 dialog 则安装
+output_v2ray_config() {
+	cat <<EOF > ${pwd}/info.txt
+
+配置信息如下，已生成为文本 ${pwd}/info.txt
+
+V2Ray: 
+-----------------------------------------------
+| Domain: ${DOMAIN}                           |
+| Protocol: grpc                              |
+| UUID: ${UUID}                               |
+| ServiceName: ${SERVICE_NAME}                |
+| TLS: Yes                                    |
+-----------------------------------------------
+
+OpenVPN 配置可通过地址 https://${DOMAIN}/client-xxxx.ovpn 的方式下载
+
+EOF
+}
+
+# Main 主程序
 check_os_release
 
 if ! command -v dialog &> /dev/null
@@ -949,5 +899,4 @@ then
 	fi
 fi
 
-cd "$(dirname "$0")"
 main_menu

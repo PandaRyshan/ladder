@@ -27,10 +27,10 @@ frontend tls-in
     acl has_sni req.ssl_sni -m found
 
     use_backend openvpn if is_vpn
-    default_backend haproxy_http
+    default_backend nginx
 
 backend openvpn
     server openvpn openvpn:443 send-proxy-v2
 
-backend haproxy_http
-    server haproxy haproxy_http:443
+backend nginx
+    server nginx nginx:443
