@@ -857,9 +857,11 @@ exit_operation() {
 }
 
 prepare_workdir() {
-	echo "创建 ladder 工作目录..."
 	cd "$(dirname "$0")"
-	mkdir -p ./ladder && cd ./ladder
+	if [[ "$(basename "$PWD")" != "ladder" ]]; then
+		echo "创建 ladder 工作目录..."
+		mkdir -p ./ladder && cd ./ladder
+	fi
 }
 
 output_v2ray_config() {
