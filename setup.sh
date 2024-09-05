@@ -271,9 +271,9 @@ prepare_configs() {
 		sysctl_config
 		env_config
 		docker_compose_config
+		v2ray_config
 		haproxy_config
 		nginx_config
-		v2ray_config
 }
 
 enable_docker_ipv6() {
@@ -383,15 +383,15 @@ services:
       - 443:443/tcp
     restart: unless-stopped
 
-  haproxy_http:
-    image: pandasrun/haproxy:latest
-    container_name: haproxy_http
-    volumes:
-      - ./config/haproxy/haproxy.http.cfg:/usr/local/etc/haproxy/haproxy.cfg
-      - ./config/certs/live/${DOMAIN}:/etc/ssl/certs
-    networks:
-      - ipv6
-    restart: unless-stopped
+#  haproxy_http:
+#    image: pandasrun/haproxy:latest
+#    container_name: haproxy_http
+#    volumes:
+#      - ./config/haproxy/haproxy.http.cfg:/usr/local/etc/haproxy/haproxy.cfg
+#      - ./config/certs/live/${DOMAIN}:/etc/ssl/certs
+#    networks:
+#      - ipv6
+#    restart: unless-stopped
 
   nginx:
     image: linuxserver/swag:latest
@@ -406,7 +406,7 @@ services:
       - VALIDATION=http
       - EMAIL=${EMAIL}
     volumes:
-      - ./config/nginx:/config
+      - ./config/nginx:/config/nginx
       - ./config/certs:/config/etc/letsencrypt
       - ./config/www:/config/www
     networks:
@@ -475,164 +475,6 @@ networks:
         - subnet: 2001:0DB9::/112
 EOF
 
-}
-
-haproxy_config() {
-	echo "写入 HAProxy 配置... Writing HAProxy configs..."
-	# HAProxy TCP Configuration
-    mkdir -p ./config/haproxy/
-	cat <<- EOF > ./config/haproxy/haproxy.tcp.cfg
-global
-    log stdout format raw local0 info
-    stats timeout 30s
-    daemon
-
-    ssl-default-bind-options no-sslv3 no-tlsv10 no-tlsv11
-    ssl-server-verify none
-
-defaults
-    mode tcp
-    log global
-    option tcplog
-    option tcpka
-	option redispatch
-    option dontlognull
-    timeout connect 5s
-    timeout client 300s
-    timeout server 300s
-	timeout queue 1m
-
-frontend tls-in
-    bind :::443 v4v6
-
-    tcp-request inspect-delay 5s
-    tcp-request content accept if { req_ssl_hello_type 1 }
-
-    acl has_sni req.ssl_sni -m found
-
-EOF
-
-	if [[ "$DEPLOY_CHOICES" == *"3" ]]; then
-		cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
-    use_backend openvpn if !has_sni
-EOF
-	fi
-
-	cat <<-EOF >> ./config/haproxy/haproxy.tcp.cfg
-    default_backend haproxy_http
-
-backend haproxy_http
-    server haproxy haproxy_http:443
-
-EOF
-
-	if [[ "$DEPLOY_CHOICES" == *"3"* ]]; then
-		cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
-backend openvpn
-    server openvpn openvpn:443
-EOF
-	fi
-
-	# HAProxy HTTP Configuration
-	cat <<- EOF > ./config/haproxy/haproxy.http.cfg
-global
-    log stdout format raw local0 info
-    stats timeout 30s
-    daemon
-
-    ssl-default-bind-ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384
-    ssl-default-bind-ciphersuites TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256
-    ssl-default-bind-options no-sslv3 no-tlsv10 no-tlsv11
-    tune.ssl.default-dh-param 2048
-    crt-base /etc/ssl/certs
-	
-defaults
-    mode http
-    log global
-    option http-keep-alive
-    option httplog
-    option dontlognull
-    timeout connect 5s
-    timeout client 300s
-    timeout server 300s
-
-frontend http-in
-    bind :::443 v4v6 ssl crt priv-fullchain-bundle.pem proto h2 alpn h2,http/1.1
-    bind quic4@:443 v4v6 ssl crt priv-fullchain-bundle.pem alpn h3
-
-    tcp-request inspect-delay 5s
-    http-request redirect scheme https unless { ssl_fc }
-    http-after-response add-header alt-svc 'h3=":443"; ma=900'
-
-EOF
-
-	if [[ "$DEPLOY_CHOICES" == *"1"* ]]; then
-		cat <<- EOF >> ./config/haproxy/haproxy.http.cfg
-    acl gRPC hdr(content-type) -i application/grpc
-
-    use_backend v2ray_grpc if gRPC
-EOF
-	fi
-
-	cat <<- EOF >> ./config/haproxy/haproxy.http.cfg
-    default_backend web
-
-backend web
-    server web nginx:443 alpn h2 check
-
-EOF
-
-	if [[ "$DEPLOY_CHOICES" == *"1"* ]]; then
-		cat <<- EOF >> ./config/haproxy/haproxy.http.cfg
-backend v2ray_grpc
-    server v2ray v2ray:10088 proto h2 check
-EOF
-	fi
-
-}
-
-nginx_config() {
-	echo "写入 nginx 配置... Writing Nginx config..."
-    mkdir -p ./config/nginx/site-confs/
-	cat <<- EOF > ./config/nginx/site-confs/default.conf
-## Version 2024/07/16 - https://github.com/linuxserver/docker-swag/blob/master/root/defaults/nginx/site-confs/default.conf.sample
-## Changelog: https://github.com/linuxserver/docker-swag/commits/master/root/defaults/nginx/site-confs/default.conf.sample
-
-server {
-    listen 80 default_server;
-    listen [::]:80 default_server;
-
-    location / {
-        return 301 https://$host$request_uri;
-    }
-}
-
-server {
-	# SSL enabled in HAProxy, no need to enable in nginx
-    listen 443 default_server;
-    listen [::]:443 default_server;
-
-    server_name _;
-
-    include /config/nginx/ssl.conf;
-
-    root /config/www;
-    index index.html index.htm index.php;
-
-    include /config/nginx/proxy-confs/*.subfolder.conf;
-
-    location / {
-        try_files $uri $uri/ /index.html /index.htm /index.php$is_args$args;
-    }
-
-    location ~ /\.ht {
-        deny all;
-    }
-}
-
-include /config/nginx/proxy-confs/*.subdomain.conf;
-proxy_cache_path cache/ keys_zone=auth_cache:10m;
-EOF
 }
 
 v2ray_config() {
@@ -833,6 +675,195 @@ v2ray_config() {
         }
     }
 }
+EOF
+}
+
+haproxy_config() {
+	echo "写入 HAProxy 配置... Writing HAProxy configs..."
+	# HAProxy TCP Configuration
+    mkdir -p ./config/haproxy/
+	cat <<- EOF > ./config/haproxy/haproxy.tcp.cfg
+global
+    log stdout format raw local0 info
+    stats timeout 30s
+    daemon
+
+    ssl-default-bind-options no-sslv3 no-tlsv10 no-tlsv11
+    ssl-server-verify none
+
+defaults
+    mode tcp
+    log global
+    option tcplog
+    option tcpka
+    option redispatch
+    option dontlognull
+    timeout connect 5s
+    timeout client 300s
+    timeout server 300s
+    timeout queue 1m
+
+frontend tls-in
+    bind :::443 v4v6
+
+    tcp-request inspect-delay 5s
+    tcp-request content accept if { req_ssl_hello_type 1 }
+
+    acl has_sni req.ssl_sni -m found
+
+EOF
+
+	if [[ "$DEPLOY_CHOICES" == *"3" ]]; then
+		cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
+    use_backend openvpn if !has_sni
+EOF
+	fi
+
+	cat <<-EOF >> ./config/haproxy/haproxy.tcp.cfg
+    use_backend haproxy_http if has_sni
+
+backend haproxy_http
+    server haproxy_http haproxy_http:443
+
+EOF
+
+	if [[ "$DEPLOY_CHOICES" == *"3"* ]]; then
+		cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
+backend openvpn
+    server openvpn openvpn:443
+EOF
+	fi
+
+#	# HAProxy HTTP Configuration
+#	cat <<- EOF > ./config/haproxy/haproxy.http.cfg
+#global
+#    log stdout format raw local0 info
+#    stats timeout 30s
+#    daemon
+#
+#    ssl-default-bind-ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384
+#    ssl-default-bind-ciphersuites TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256
+#    ssl-default-bind-options no-sslv3 no-tlsv10 no-tlsv11
+#    tune.ssl.default-dh-param 2048
+#    crt-base /etc/ssl/certs
+#	
+#defaults
+#    mode http
+#    log global
+#    option http-keep-alive
+#    option httplog
+#    option dontlognull
+#    timeout connect 5s
+#    timeout client 300s
+#    timeout server 300s
+#
+#frontend http-in
+#    bind :::443 v4v6 ssl crt priv-fullchain-bundle.pem proto h2 alpn h2,http/1.1
+#    bind quic4@:443 v4v6 ssl crt priv-fullchain-bundle.pem alpn h3
+#
+#    tcp-request inspect-delay 5s
+#    http-request redirect scheme https unless { ssl_fc }
+#    http-after-response add-header alt-svc 'h3=":443"; ma=900'
+#
+#EOF
+#
+#	if [[ "$DEPLOY_CHOICES" == *"1"* ]]; then
+#		cat <<- EOF >> ./config/haproxy/haproxy.http.cfg
+#    acl gRPC hdr(content-type) -i application/grpc
+#
+#    use_backend v2ray_grpc if gRPC
+#EOF
+#	fi
+#
+#	cat <<- EOF >> ./config/haproxy/haproxy.http.cfg
+#    default_backend web
+#
+#backend web
+#    server web nginx:443 alpn h2 check
+#
+#EOF
+#
+#	if [[ "$DEPLOY_CHOICES" == *"1"* ]]; then
+#		cat <<- EOF >> ./config/haproxy/haproxy.http.cfg
+#backend v2ray_grpc
+#    server v2ray v2ray:10088 proto h2 check
+#EOF
+#	fi
+
+}
+
+nginx_config() {
+	echo "写入 nginx 配置... Writing Nginx config..."
+    mkdir -p ./config/nginx/site-confs/
+	cat <<- EOF > ./config/nginx/site-confs/default.conf
+## Version 2024/07/16 - https://github.com/linuxserver/docker-swag/blob/master/root/defaults/nginx/site-confs/default.conf.sample
+## Changelog: https://github.com/linuxserver/docker-swag/commits/master/root/defaults/nginx/site-confs/default.conf.sample
+
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+
+    location / {
+        return 301 https://\$host$request_uri;
+    }
+}
+
+server {
+	# SSL enabled in HAProxy, no need to enable in nginx
+    listen 443 ssl default_server;
+    listen [::]:443 ssl default_server;
+
+    server_name _;
+
+    include /config/nginx/ssl.conf;
+
+    root /config/www;
+    index index.html index.htm index.php;
+
+    include /config/nginx/proxy-confs/*.subfolder.conf;
+
+    location / {
+        try_files \$uri \$uri/ /index.html /index.htm /index.php\$is_args\$args;
+    }
+
+    location /${SERVICE_NAME} {
+        if ( \$content_type !~ "application/grpc") {
+            return 404;
+        }
+
+        if ( \$request_method != "POST" ) {
+            return 404;
+        }
+
+        client_body_timeout 300s;
+        client_max_body_size 0;
+        client_body_buffer_size 32k;
+        grpc_connect_timeout 10s;
+        proxy_buffering off;
+        grpc_read_timeout 300s;
+        grpc_send_timeout 300s;
+        grpc_socket_keepalive on;
+        grpc_pass grpc://grpc_backend;
+
+        grpc_set_header Connection "";
+        grpc_set_header X-Real-IP \$remote_addr;
+        grpc_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    }
+
+    location ~ /\.ht {
+        deny all;
+    }
+}
+
+upstream grpc_backend {
+    server v2ray:10088;
+    keepalive 500;
+    keepalive_timeout 7d;
+    keepalive_requests 100000;
+}
+
+include /config/nginx/proxy-confs/*.subdomain.conf;
+proxy_cache_path cache/ keys_zone=auth_cache:10m;
 EOF
 }
 
