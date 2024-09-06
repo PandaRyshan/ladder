@@ -1,281 +1,281 @@
 #!/bin/bash
 
 main_menu() {
-	items=(
-		1 "状态 Status" on
-		2 "部署 Deploy" off
-		3 "重启 Restart" off
-		4 "更新 Upgrade" off
-		5 "停止 Stop" off
-		6 "卸载 Uninstall" off
-	)
-	while true; do
-		choice=$(dialog --clear \
-			--title "主菜单" \
-			--radiolist "请选择一个选项：" 15 50 5 \
-			"${items[@]}" \
-			3>&1 1>&2 2>&3)
+    items=(
+        1 "状态 Status" on
+        2 "部署 Deploy" off
+        3 "重启 Restart" off
+        4 "更新 Upgrade" off
+        5 "停止 Stop" off
+        6 "卸载 Uninstall" off
+    )
+    while true; do
+        choice=$(dialog --clear \
+            --title "主菜单" \
+            --radiolist "请选择一个选项：" 15 50 5 \
+            "${items[@]}" \
+            3>&1 1>&2 2>&3)
 
-		# 获取 dialog 退出值
-		exit_status=$?
-		exit_operation $exit_status
+        # 获取 dialog 退出值
+        exit_status=$?
+        exit_operation $exit_status
 
-		case $choice in
-			1)
-				status_menu
-				;;
-			2)
-				deploy_menu
-				input_config
-				sysctl_menu
-				deploy
-				break
-				;;
-			3)
-				restart_containers
-				;;
-			4)
-				upgrade_containers
-				;;
-			5)
-				stop_containers
-				;;
-			6)
-				down_containers
-				;;
-			*)
-				;;
-		esac
-	done
+        case $choice in
+            1)
+                status_menu
+                ;;
+            2)
+                deploy_menu
+                input_config
+                sysctl_menu
+                deploy
+                break
+                ;;
+            3)
+                restart_containers
+                ;;
+            4)
+                upgrade_containers
+                ;;
+            5)
+                stop_containers
+                ;;
+            6)
+                down_containers
+                ;;
+            *)
+                ;;
+        esac
+    done
 }
 
 status_menu() {
-	sudo docker compose ps 2>&1 | dialog --title "容器状态" --programbox 20 70
+    sudo docker compose ps 2>&1 | dialog --title "容器状态" --programbox 20 70
 }
 
 deploy_menu() {
-	while true; do
-		DEPLOY_CHOICES=$(dialog --clear \
-			--title "选择要部署的组件" \
-			--extra-button --extra-label "Previous" \
-			--checklist "请选择至少一个选项：" 15 50 5 \
-			1 "V2Ray" on \
-			2 "Warp" off \
-			3 "OpenVPN" off \
-			3>&1 1>&2 2>&3)
+    while true; do
+        DEPLOY_CHOICES=$(dialog --clear \
+            --title "选择要部署的组件" \
+            --extra-button --extra-label "Previous" \
+            --checklist "请选择至少一个选项：" 15 50 5 \
+            1 "V2Ray" on \
+            2 "Warp" off \
+            3 "OpenVPN" off \
+            3>&1 1>&2 2>&3)
 
-		exit_status=$?
-		exit_operation $exit_status
+        exit_status=$?
+        exit_operation $exit_status
 
-		if [ -z "$DEPLOY_CHOICES" ]; then
-			dialog --msgbox "请至少选择一项" 7 50
-		else
-			break
-		fi
-	done
+        if [ -z "$DEPLOY_CHOICES" ]; then
+            dialog --msgbox "请至少选择一项" 7 50
+        else
+            break
+        fi
+    done
 }
 
 input_config() {
-	TIMEZONE=${1:-"Asia/Shanghai"}
-	DOMAIN=${2:-""}
-	WARP_KEY=${3:-""}
-	while true; do
-		dialog_args=(
-			--title "V2Ray 配置" \
-			--extra-button --extra-label "Previous" \
-			--mixedform "请输入 V2Ray 配置信息：" 15 50 5 \
-		)
+    TIMEZONE=${1:-"Asia/Shanghai"}
+    DOMAIN=${2:-""}
+    WARP_KEY=${3:-""}
+    while true; do
+        dialog_args=(
+            --title "V2Ray 配置" \
+            --extra-button --extra-label "Previous" \
+            --mixedform "请输入 V2Ray 配置信息：" 15 50 5 \
+        )
 
-		# 判断 DEPLOY_CHOICES 中是否包含 Warp 选项，如存在则添加 Warp Key 输入框
-		if [[ $DEPLOY_CHOICES == *"2"* ]]; then
-			dialog_args+=(
-				"时区：" 1 1 "$TIMEZONE" 1 12 30 30 0 \
-				"域名：" 2 1 "$DOMAIN" 2 12 30 30 0 \
-				"Warp Key：" 3 1 "$WARP_KEY" 3 12 30 30 0)
-		else
-			dialog_args+=(
-				"时区：" 1 1 "$TIMEZONE" 1 8 30 30 0 \
-				"域名：" 2 1 "$DOMAIN" 2 8 30 30 0)
-		fi
+        # 判断 DEPLOY_CHOICES 中是否包含 Warp 选项，如存在则添加 Warp Key 输入框
+        if [[ $DEPLOY_CHOICES == *"2"* ]]; then
+            dialog_args+=(
+                "时区：" 1 1 "$TIMEZONE" 1 12 30 30 0 \
+                "域名：" 2 1 "$DOMAIN" 2 12 30 30 0 \
+                "Warp Key：" 3 1 "$WARP_KEY" 3 12 30 30 0)
+        else
+            dialog_args+=(
+                "时区：" 1 1 "$TIMEZONE" 1 8 30 30 0 \
+                "域名：" 2 1 "$DOMAIN" 2 8 30 30 0)
+        fi
 
-		result=$(dialog "${dialog_args[@]}" 3>&1 1>&2 2>&3)
+        result=$(dialog "${dialog_args[@]}" 3>&1 1>&2 2>&3)
 
-		exit_status=$?
-		TIMEZONE=$(sed -n '1p' <<< $result)
-		DOMAIN=$(sed -n '2p' <<< $result)
-		WARP_KEY=$(sed -n '3p' <<< $result)
+        exit_status=$?
+        TIMEZONE=$(sed -n '1p' <<< $result)
+        DOMAIN=$(sed -n '2p' <<< $result)
+        WARP_KEY=$(sed -n '3p' <<< $result)
 
-		case $exit_status in
-			1)
-				# Cancel
-				exit 0
-				;;
-			3)
-				# Previous
-				main_menu
-				;;
-			255)
-				# ESC
-				dialog --yesno "是否要退出？" 7 50
-				if [ $? -eq 0 ]; then
-					exit 0
-				fi
-		esac
+        case $exit_status in
+            1)
+                # Cancel
+                exit 0
+                ;;
+            3)
+                # Previous
+                main_menu
+                ;;
+            255)
+                # ESC
+                dialog --yesno "是否要退出？" 7 50
+                if [ $? -eq 0 ]; then
+                    exit 0
+                fi
+        esac
 
-		if [ -z "$TIMEZONE" ] || [ -z "$DOMAIN" ]; then
-			dialog --msgbox "所有信息均为必填，请继续输入。" 7 50
-		else
-			break
-		fi
-	done
+        if [ -z "$TIMEZONE" ] || [ -z "$DOMAIN" ]; then
+            dialog --msgbox "所有信息均为必填，请继续输入。" 7 50
+        else
+            break
+        fi
+    done
 }
 
 sysctl_menu() {
-	while true; do
-		dialog --clear \
-			--title "优化 sysctl.conf" \
-			--extra-button --extra-label "Previous" \
-			--yesno "是否优化 sysctl.conf？" 7 50
+    while true; do
+        dialog --clear \
+            --title "优化 sysctl.conf" \
+            --extra-button --extra-label "Previous" \
+            --yesno "是否优化 sysctl.conf？" 7 50
 
-		exit_status=$?
-		case $exit_status in
-			3)
-				# Previous
-				input_config $TIMEZONE $DOMAIN $WARP_KEY
-				;;
-			255)
-				# ESC
-				dialog --yesno "是否要退出？" 7 50
-				if [ $? -eq 0 ]; then
-					exit 0
-				fi
-		esac
+        exit_status=$?
+        case $exit_status in
+            3)
+                # Previous
+                input_config $TIMEZONE $DOMAIN $WARP_KEY
+                ;;
+            255)
+                # ESC
+                dialog --yesno "是否要退出？" 7 50
+                if [ $? -eq 0 ]; then
+                    exit 0
+                fi
+        esac
 
-		dialog --yesno "确认开始部署？" 7 50
-		if [ $? -eq 0 ]; then
+        dialog --yesno "确认开始部署？" 7 50
+        if [ $? -eq 0 ]; then
             SYSCTL_OPTIMIZE=$exit_status
-			break
-		fi
-	done
+            break
+        fi
+    done
 }
 
 check_os_release() {
-	echo "检查发行版 Checking os release..."
-	if [ -f "/etc/os-release" ]; then
-		. /etc/os-release
-		OS=$NAME
-	fi
+    echo "检查发行版 Checking os release..."
+    if [ -f "/etc/os-release" ]; then
+        . /etc/os-release
+        OS=$NAME
+    fi
 }
 
 check_docker_env() {
-	echo "检查 docker 环境 Checking docker ..."
-	if ! command -v docker &> /dev/null
-	then
-		install_docker
-	fi
+    echo "检查 docker 环境 Checking docker ..."
+    if ! command -v docker &> /dev/null
+    then
+        install_docker
+    fi
 }
 
 install_docker() {
-	echo "安装 docker 环境 Checking docker..."
-	# enable ipv6 support
-	sudo mkdir -p /etc/docker
-	cat <<- EOF > /etc/docker/daemon.json
+    echo "安装 docker 环境 Checking docker..."
+    # enable ipv6 support
+    sudo mkdir -p /etc/docker
+    cat <<- EOF > /etc/docker/daemon.json
 {
     "experimental": true,
     "ip6tables": true
 }
 EOF
 
-	if [[ "${OS,,}" == *"ubuntu"* ]]; then
-		# Uninstall conflicting packages:
-		for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do sudo apt-get remove $pkg; done;
-		sudo apt-get update
-		sudo apt-get install -y ca-certificates curl
-		sudo install -m 0755 -d /etc/apt/keyrings
-		sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-		sudo chmod a+r /etc/apt/keyrings/docker.asc
+    if [[ "${OS,,}" == *"ubuntu"* ]]; then
+        # Uninstall conflicting packages:
+        for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do sudo apt-get remove $pkg; done;
+        sudo apt-get update
+        sudo apt-get install -y ca-certificates curl
+        sudo install -m 0755 -d /etc/apt/keyrings
+        sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+        sudo chmod a+r /etc/apt/keyrings/docker.asc
 
-		echo \
-		"deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
-		$(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
-		sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-		sudo apt-get update
-		sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-	elif [[ "${OS,,}" == *"debian"* ]]; then
-		for pkg in docker.io docker-doc docker-compose podman-docker containerd runc; do sudo apt-get remove $pkg; done
-		sudo apt-get update
-		sudo apt-get install -y ca-certificates curl
-		sudo install -m 0755 -d /etc/apt/keyrings
-		sudo curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
-		sudo chmod a+r /etc/apt/keyrings/docker.asc
+        echo \
+        "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+        $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+        sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+        sudo apt-get update
+        sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+    elif [[ "${OS,,}" == *"debian"* ]]; then
+        for pkg in docker.io docker-doc docker-compose podman-docker containerd runc; do sudo apt-get remove $pkg; done
+        sudo apt-get update
+        sudo apt-get install -y ca-certificates curl
+        sudo install -m 0755 -d /etc/apt/keyrings
+        sudo curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
+        sudo chmod a+r /etc/apt/keyrings/docker.asc
 
-		echo \
-		"deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian \
-		$(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
-		sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-		sudo apt-get update
-		sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-	elif [[ "${OS,,}" == *"centos"* ]]; then
-		sudo yum remove docker \
-				  docker-client \
-				  docker-client-latest \
-				  docker-common \
-				  docker-latest \
-				  docker-latest-logrotate \
-				  docker-logrotate \
-				  docker-engine
-		sudo yum install -y yum-utils
-		sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-		sudo yum install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin wget git uuid-runtime
-	elif [[ "${OS,,}" == *"fedora"* ]]; then
-		sudo dnf remove docker \
-				  docker-client \
-				  docker-client-latest \
-				  docker-common \
-				  docker-latest \
-				  docker-latest-logrotate \
-				  docker-logrotate \
-				  docker-selinux \
-				  docker-engine-selinux \
-				  docker-engine
-		sudo dnf install -y dnf-plugins-core
-		sudo dnf config-manager --add-repo https://download.docker.com/linux/fedora/docker-ce.repo
-	elif [[ "${OS,,}" == *"arch"* ]]; then
-		sudo dnf install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin wget git uuid-runtime
-		sudo pacman -Syy && sudo pacman -S --noconfirm docker docker-compose wget git
-	else
-		echo "Unsupported operating system"
-		exit 1
-	fi
+        echo \
+        "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian \
+        $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+        sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+        sudo apt-get update
+        sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+    elif [[ "${OS,,}" == *"centos"* ]]; then
+        sudo yum remove docker \
+                  docker-client \
+                  docker-client-latest \
+                  docker-common \
+                  docker-latest \
+                  docker-latest-logrotate \
+                  docker-logrotate \
+                  docker-engine
+        sudo yum install -y yum-utils
+        sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+        sudo yum install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin wget git uuid-runtime
+    elif [[ "${OS,,}" == *"fedora"* ]]; then
+        sudo dnf remove docker \
+                  docker-client \
+                  docker-client-latest \
+                  docker-common \
+                  docker-latest \
+                  docker-latest-logrotate \
+                  docker-logrotate \
+                  docker-selinux \
+                  docker-engine-selinux \
+                  docker-engine
+        sudo dnf install -y dnf-plugins-core
+        sudo dnf config-manager --add-repo https://download.docker.com/linux/fedora/docker-ce.repo
+    elif [[ "${OS,,}" == *"arch"* ]]; then
+        sudo dnf install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin wget git uuid-runtime
+        sudo pacman -Syy && sudo pacman -S --noconfirm docker docker-compose wget git
+    else
+        echo "Unsupported operating system"
+        exit 1
+    fi
 
-	sudo usermod -a -G docker $USER
-	enable_docker_service
+    sudo usermod -a -G docker $USER
+    enable_docker_service
 }
 
 enable_docker_service() {
-	sudo systemctl enable docker 2>&1
-	sudo systemctl start docker 2>&1
+    sudo systemctl enable docker 2>&1
+    sudo systemctl start docker 2>&1
 }
 
 deploy() {
-	{
-		prepare_workdir
-		prepare_configs
-		docker compose pull 2>&1
-		docker compose up -d 2>&1
-		output_v2ray_config
-	} | dialog --title "正在部署... Deploying..." --programbox 30 100
+    {
+        prepare_workdir
+        prepare_configs
+        docker compose pull 2>&1
+        docker compose up -d 2>&1
+        output_v2ray_config
+    } | dialog --title "正在部署... Deploying..." --programbox 30 100
 }
 
 prepare_configs() {
-		check_docker_env
-		enable_docker_ipv6
-		sysctl_config
-		env_config
-		docker_compose_config
-		v2ray_config
-		haproxy_config
-		nginx_config
+        check_docker_env
+        enable_docker_ipv6
+        sysctl_config
+        env_config
+        docker_compose_config
+        v2ray_config
+        haproxy_config
+        nginx_config
 }
 
 enable_docker_ipv6() {
@@ -354,7 +354,7 @@ EOF
 }
 
 env_config() {
-	cat <<- EOF > .env
+    cat <<- EOF > .env
 TZ=$timezone
 DOMAIN=$domain
 WARP_KEY=$warp_key
@@ -362,15 +362,15 @@ EOF
 }
 
 docker_compose_config() {
-	if [[ "$DEPLOY_CHOICES" == *"1"* ]]; then
-		echo "下载 geodata. Downloading geodata..."
-		mkdir -p ./config/geodata
-		curl -sLo ./config/geodata/geoip.dat https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat
-		curl -sLo ./config/geodata/geosite.dat https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat
-	fi
+    if [[ "$DEPLOY_CHOICES" == *"1"* ]]; then
+        echo "下载 geodata. Downloading geodata..."
+        mkdir -p ./config/geodata
+        curl -sLo ./config/geodata/geoip.dat https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat
+        curl -sLo ./config/geodata/geosite.dat https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat
+    fi
 
-	echo "写入 docker 配置. Writing docker-compose config..."
-	cat <<- EOF > docker-compose.yaml
+    echo "写入 docker 配置. Writing docker-compose config..."
+    cat <<- EOF > docker-compose.yaml
 services:
 
   haproxy_tcp:
@@ -409,8 +409,8 @@ services:
 
 EOF
 
-	if [[ "$DEPLOY_CHOICES" == *"1"* ]]; then
-		cat <<- EOF >> docker-compose.yaml
+    if [[ "$DEPLOY_CHOICES" == *"1"* ]]; then
+        cat <<- EOF >> docker-compose.yaml
   v2ray:
     image: pandasrun/v2ray:latest
     container_name: v2ray
@@ -423,10 +423,10 @@ EOF
     restart: unless-stopped
 
 EOF
-	fi
+    fi
 
-	if [[ "$DEPLOY_CHOICES" == *"2"* ]]; then
-		cat <<- EOF >> docker-compose.yaml
+    if [[ "$DEPLOY_CHOICES" == *"2"* ]]; then
+        cat <<- EOF >> docker-compose.yaml
   warp:
     image: pandasrun/warp:latest
     container_name: warp
@@ -439,10 +439,10 @@ EOF
     restart: unless-stopped
 
 EOF
-	fi
+    fi
 
-	if [[ "$DEPLOY_CHOICES" == *"3"* ]]; then
-		cat <<- EOF >> docker-compose.yaml
+    if [[ "$DEPLOY_CHOICES" == *"3"* ]]; then
+        cat <<- EOF >> docker-compose.yaml
   openvpn:
     image: pandasrun/openvpn:latest
     container_name: openvpn
@@ -456,9 +456,9 @@ EOF
     restart: unless-stopped
 
 EOF
-	fi
+    fi
 
-	cat <<- EOF >> docker-compose.yaml
+    cat <<- EOF >> docker-compose.yaml
 networks:
   ipv6:
     enable_ipv6: true
@@ -470,7 +470,7 @@ EOF
 }
 
 v2ray_config() {
-	echo "写入 V2Ray 配置... Writing V2Ray config..."
+    echo "写入 V2Ray 配置... Writing V2Ray config..."
     mkdir -p ./config/v2ray/
     PUBLIC_IP=$(timeout 3 curl -s https://ipinfo.io/ip)
     if [ -z "$PUBLIC_IP" ]; then
@@ -479,9 +479,9 @@ v2ray_config() {
             PUBLIC_IP="127.0.0.1"
         fi
     fi
-	UUID=$(uuidgen)
-	SERVICE_NAME=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
-	cat <<- EOF > ./config/v2ray/config.json
+    UUID=$(uuidgen)
+    SERVICE_NAME=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
+    cat <<- EOF > ./config/v2ray/config.json
 {
     "log": {
         "loglevel": "warning"
@@ -648,10 +648,10 @@ EOF
 }
 
 haproxy_config() {
-	echo "写入 HAProxy 配置... Writing HAProxy configs..."
-	# HAProxy TCP Configuration
+    echo "写入 HAProxy 配置... Writing HAProxy configs..."
+    # HAProxy TCP Configuration
     mkdir -p ./config/haproxy/
-	cat <<- EOF > ./config/haproxy/haproxy.tcp.cfg
+    cat <<- EOF > ./config/haproxy/haproxy.tcp.cfg
 global
     log stdout format raw local0 info
     stats timeout 30s
@@ -682,13 +682,13 @@ frontend tls-in
 
 EOF
 
-	if [[ "$DEPLOY_CHOICES" == *"3" ]]; then
-		cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
+    if [[ "$DEPLOY_CHOICES" == *"3" ]]; then
+        cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
     use_backend openvpn if !has_sni
 EOF
-	fi
+    fi
 
-	cat <<-EOF >> ./config/haproxy/haproxy.tcp.cfg
+    cat <<-EOF >> ./config/haproxy/haproxy.tcp.cfg
     use_backend nginx if has_sni
 
 backend nginx
@@ -696,21 +696,21 @@ backend nginx
 
 EOF
 
-	if [[ "$DEPLOY_CHOICES" == *"3"* ]]; then
-		cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
+    if [[ "$DEPLOY_CHOICES" == *"3"* ]]; then
+        cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
 backend openvpn
     server openvpn openvpn:443
 EOF
-	fi
+    fi
 
 }
 
 nginx_config() {
-	echo "写入 nginx 配置... Writing Nginx config..."
+    echo "写入 nginx 配置... Writing Nginx config..."
     mkdir -p ./config/nginx/site-confs/
-	mkdir -p ./config/www/
-	curl -sLo ./config/www/index.html https://raw.githubusercontent.com/PandaRyshan/ladder/main/config/www/index.html
-	cat <<- EOF > ./config/nginx/site-confs/default.conf
+    mkdir -p ./config/www/
+    curl -sLo ./config/www/index.html https://raw.githubusercontent.com/PandaRyshan/ladder/main/config/www/index.html
+    cat <<- EOF > ./config/nginx/site-confs/default.conf
 ## Version 2024/07/16 - https://github.com/linuxserver/docker-swag/blob/master/root/defaults/nginx/site-confs/default.conf.sample
 ## Changelog: https://github.com/linuxserver/docker-swag/commits/master/root/defaults/nginx/site-confs/default.conf.sample
 
@@ -782,106 +782,89 @@ EOF
 }
 
 pull_images() {
-	{
-		docker compose pull 2>&1
-	} | dialog --title "正在拉取镜像..." --programbox 20 70
+    {
+        docker compose pull 2>&1
+    } | dialog --title "正在拉取镜像..." --programbox 20 70
 }
 
 up_containers() {
-	{
-		sudo docker compose up -d 2>&1
-	} | dialog --title "正在部署容器..." --programbox 20 70
+    {
+        sudo docker compose up -d 2>&1
+    } | dialog --title "正在部署容器..." --programbox 20 70
 }
 
 start_containers() {
-	{
-		sudo docker compose start 2>&1
-	} | dialog --title "正在启动容器..." --programbox 20 70
+    {
+        sudo docker compose start 2>&1
+    } | dialog --title "正在启动容器..." --programbox 20 70
 }
 
 upgrade_containers() {
-	{
-		sudo docker compose pull 2>&1
-	} | dialog --title "正在更新容器..." --programbox 20 70
+    {
+        sudo docker compose pull 2>&1
+    } | dialog --title "正在更新容器..." --programbox 20 70
 }
 
 stop_containers() {
-	{
-		sudo docker compose stop 2>&1
-	} | dialog --title "正在停止容器..." --programbox 20 70
+    {
+        sudo docker compose stop 2>&1
+    } | dialog --title "正在停止容器..." --programbox 20 70
 }
 
 restart_containers() {
-	{
-		sudo docker compose restart 2>&1
-	} | dialog --title "正在重启容器..." --programbox 20 70
+    {
+        sudo docker compose restart 2>&1
+    } | dialog --title "正在重启容器..." --programbox 20 70
 }
 
 down_containers() {
-	{
-		sudo docker compose down 2>&1
-	} | dialog --title "正在卸载容器..." --programbox 20 70
+    {
+        sudo docker compose down 2>&1
+    } | dialog --title "正在卸载容器..." --programbox 20 70
 }
 
 exit_operation() {
-	exit_status=$1
-	case $exit_status in
-		1)
-			# Cancel
-			exit 0
-			;;
-		3)
-			# Previous
-			main_menu
-			;;
-		255)
-			# ESC
-			dialog --yesno "是否要退出？" 7 50
-			if [ $? -eq 0 ]; then
-				exit 0
-			fi
-	esac
+    exit_status=$1
+    case $exit_status in
+        1)
+            # Cancel
+            exit 0
+            ;;
+        3)
+            # Previous
+            main_menu
+            ;;
+        255)
+            # ESC
+            dialog --yesno "是否要退出？" 7 50
+            if [ $? -eq 0 ]; then
+                exit 0
+            fi
+    esac
 }
 
 prepare_workdir() {
-	cd "$(dirname "$0")"
-	if [[ "$(basename "$PWD")" != "ladder" ]]; then
-		echo "创建 ladder 工作目录..."
-		mkdir -p ./ladder && cd ./ladder
-	fi
+    cd "$(dirname "$0")"
+    if [[ "$(basename "$PWD")" != "ladder" ]]; then
+        echo "创建 ladder 工作目录..."
+        mkdir -p ./ladder && cd ./ladder
+    fi
 }
 
 output_v2ray_config() {
-	echo ""
-	echo "配置信息如下，已生成为文本 ${pwd}/info.txt"
-	echo
-	echo "V2Ray:"
-	echo "-----------------------------------------------"
-	echo "| Domain: ${DOMAIN}                           |"
-	echo "| Protocol: grpc                              |"
-	echo "| UUID: ${UUID}                               |"
-	echo "| ServiceName: ${SERVICE_NAME}                |"
-	echo "| TLS: Yes                                    |"
-	echo "-----------------------------------------------"
-	echo
-	echo "OpenVPN 配置可通过地址 https://${DOMAIN}/client-xxxx.ovpn 的方式下载"
-
-	cat <<EOF > ${pwd}/info.txt
-
-配置信息如下，已生成为文本 ${pwd}/info.txt
-
-V2Ray: 
------------------------------------------------
-| Domain: ${DOMAIN}                           |
-| Protocol: grpc                              |
-| UUID: ${UUID}                               |
-| ServiceName: ${SERVICE_NAME}                |
-| TLS: Yes                                    |
------------------------------------------------
-
-OpenVPN 配置可通过地址 https://${DOMAIN}/client-xxxx.ovpn 的方式下载
-
-EOF
+    max_len=$(echo -e "${DOMAIN}\n${UUID}\n${SERVICE_NAME}" | wc -L)
+    {
+        echo "V2Ray 配置信息如下："
+        printf "+--------------+-%-${max_len}s-+\n" | sed "s/ /-/g"
+        printf "| %-12s | %-${max_len}s |\n" "Domain:" "${DOMAIN}"
+        printf "| %-12s | %-${max_len}s |\n" "Protocol:" "grpc"
+        printf "| %-12s | %-${max_len}s |\n" "UUID:" "${UUID}"
+        printf "| %-12s | %-${max_len}s |\n" "ServiceName:" "${SERVICE_NAME}"
+        printf "| %-12s | %-${max_len}s |\n" "TLS:" "Yes"
+        printf "+--------------+-%-${max_len}s-+\n" | sed "s/ /-/g"
+        echo ""
+        echo "OpenVPN 配置可通过地址 https://${DOMAIN}/client-xxxx.ovpn 的方式下载"
+    } | tee ${pwd}/info.txt
 }
 
 # Main 主程序
@@ -889,17 +872,17 @@ check_os_release
 
 if ! command -v dialog &> /dev/null
 then
-	echo "安装 dialog"
-	if [[ "${OS,,}" == *"debian"* ]] || [[ "${OS,,}" == *"ubuntu"* ]]; then
-		sudo apt-get update && sudo apt-get install -y dialog
-	elif [[ "${OS,,}" == *"centos"* ]] || [[ "${OS,,}" == *"fedora"* ]]; then
-		sudo dnf install -y dialog
-	elif [[ "${OS,,}" == *"arch"* ]]; then
-		sudo pacman -Sy --noconfirm dialog
-	else
-		echo "不支持的操作系统"
-		exit 1
-	fi
+    echo "安装 dialog"
+    if [[ "${OS,,}" == *"debian"* ]] || [[ "${OS,,}" == *"ubuntu"* ]]; then
+        sudo apt-get update && sudo apt-get install -y dialog
+    elif [[ "${OS,,}" == *"centos"* ]] || [[ "${OS,,}" == *"fedora"* ]]; then
+        sudo dnf install -y dialog
+    elif [[ "${OS,,}" == *"arch"* ]]; then
+        sudo pacman -Sy --noconfirm dialog
+    else
+        echo "不支持的操作系统"
+        exit 1
+    fi
 fi
 
 main_menu
