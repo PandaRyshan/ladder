@@ -854,6 +854,7 @@ prepare_workdir() {
 output_v2ray_config() {
     max_len=$(echo -e "${DOMAIN}\n${UUID}\n${SERVICE_NAME}" | wc -L)
     {
+        echo ""
         echo "V2Ray 配置信息如下："
         printf "+--------------+-%-${max_len}s-+\n" | sed "s/ /-/g"
         printf "| %-12s | %-${max_len}s |\n" "Domain:" "${DOMAIN}"
@@ -864,7 +865,7 @@ output_v2ray_config() {
         printf "+--------------+-%-${max_len}s-+\n" | sed "s/ /-/g"
         echo ""
         echo "OpenVPN 配置可通过地址 https://${DOMAIN}/client-xxxx.ovpn 的方式下载"
-    } | tee ${pwd}/info.txt
+    } | tee $(pwd)/info.txt
 }
 
 # Main 主程序
