@@ -1,4 +1,4 @@
-name: ci
+name: build_warp_image
 
 on:
   push:

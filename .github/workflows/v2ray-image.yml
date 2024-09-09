@@ -1,4 +1,4 @@
-name: ci
+name: build_v2ray_image
 
 on:
   push:
