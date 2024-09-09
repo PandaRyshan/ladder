@@ -453,6 +453,13 @@ EOF
       - ./config/openvpn/client:/root/client-configs
     networks:
       - ipv6
+    sysctls:
+      - net.ipv4.ip_forward=1
+      - net.ipv6.conf.all.forwarding=1
+    cap_add:
+      - NET_ADMIN
+    security_opt:
+      - no-new-privileges
     restart: unless-stopped
 
 EOF
@@ -783,7 +790,7 @@ EOF
 
 pull_images() {
     {
-        docker compose pull 2>&1
+        sudo docker compose pull 2>&1
     } | dialog --title "正在拉取镜像..." --programbox 20 70
 }
 
