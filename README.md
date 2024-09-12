@@ -25,7 +25,7 @@
 
 ```shell
 # 下载脚本
-wget https://raw.githubusercontent.com/PandaRyshan/ladder/main/setup.sh
+curl -LO https://raw.githubusercontent.com/PandaRyshan/ladder/main/setup.sh
 
 # 给脚本执行权限
 chmod +x setup.sh
