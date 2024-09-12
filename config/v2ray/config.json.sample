@@ -10,10 +10,10 @@
             "ss.epdg.epc.geo.mnc260.mcc310.pub.3gppnetwork.org": "208.54.87.3"
         },
         "servers": [
-            "https+local://cloudflare-dns.com/dns-query",
-            "https+local://dns.google/dns-query",
             "1.1.1.1",
-            "8.8.8.8"
+            "8.8.8.8",
+            "https+local://cloudflare-dns.com/dns-query",
+            "https+local://dns.google/dns-query"
         ],
         "clientIp": "<your-host-ip>"
         // "tag": "dns-in"
@@ -140,6 +140,7 @@
                 "outboundTag": "cf-warp",
                 "type": "field",
                 "domain": [
+                    // "geosite": "openai"
                     "domain:foo.example.com"
                 ]
             },

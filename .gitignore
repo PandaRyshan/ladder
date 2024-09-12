@@ -14,3 +14,4 @@
 /config/nginx/proxy-confs/
 /config/nginx/site-confs/*.sample
 
+dummy.sh

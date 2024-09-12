@@ -10,10 +10,13 @@ defaults
     mode tcp
     log global
     option tcplog
+    option tcpka
+    option redispatch
     option dontlognull
     timeout connect 5s
     timeout client 300s
     timeout server 300s
+    timeout queue 1m
 
 frontend tls-in
     bind :::443 v4v6
@@ -21,17 +24,13 @@ frontend tls-in
     tcp-request inspect-delay 5s
     tcp-request content accept if { req_ssl_hello_type 1 }
 
-    acl is_vpn req.ssl_sni -i <your-ocserv-domain>
-    acl is_v2ray req.ssl_sni -i <your-v2ray-domain>
+    acl has_sni req.ssl_sni -m found
 
-    use_backend ocserv if is_vpn
-    use_backend haproxy_http if is_v2ray
+    use_backend openvpn if is_vpn
+    default_backend nginx
 
-backend v2ray_tcp
-    server v2ray v2ray:10010 check
+backend openvpn
+    server openvpn openvpn:443 send-proxy-v2
 
-backend ocserv
-    server ocserv ocserv:443 send-proxy-v2
-
-backend haproxy_http
-    server haproxy haproxy_http:443
+backend nginx
+    server nginx nginx:443

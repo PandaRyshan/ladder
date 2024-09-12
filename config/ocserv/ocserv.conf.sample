@@ -49,8 +49,7 @@ ipv4-netmask = 255.255.255.0
 ipv6-network = 2001:db8:2::/64
 ipv6-subnet-prefix = 112
 
-route = 172.20.0.0/24
-route = 2001:db8:2::/64
+route = default
 no-route = 10.0.0.0/8
 no-route = 100.64.0.0/10
 no-route = 169.254.0.0/16
