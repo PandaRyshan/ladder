@@ -5,8 +5,8 @@
 ## 组件
 
 * [v2ray](https://github.com/v2fly/v2ray-core): V2Ray 代理服务 + DNS
-* [swag](https://github.com/linuxserver/docker-swag): Web 服务器 + 自动提供 Letsencrypt 证书
-* [haproxy](https://github.com/haproxy/haproxy): TCP/UDP 路由
+* [haproxy](https://github.com/haproxy/haproxy): TCP 路由
+* [swag](https://github.com/linuxserver/docker-swag): HTTP 路由 + Web 服务 + CertBot
 * [ocserv](https://ocserv.gitlab.io/www/index.html): 兼容 Cisco Anyconnect 协议的 OpenConnect VPN
 * [cloudflare-warp](https://developers.cloudflare.com/warp-client/get-started/linux/): Cloudflare 提供的 socks5 代理
 * [openvpn howto](https://openvpn.net/community-resources/how-to/): OpenVPN HowTo
