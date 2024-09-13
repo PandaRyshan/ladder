@@ -37,7 +37,6 @@ chmod +x setup.sh
 
 ```shell
 # 默认会把配置安装在 ladder 文件夹
-
 cd ladder
 
 # 把 <username> 替换为你想要的用户名
