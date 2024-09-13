@@ -9,8 +9,7 @@
 * [swag](https://github.com/linuxserver/docker-swag): HTTP 路由 + Web 服务 + CertBot
 * [ocserv](https://ocserv.gitlab.io/www/index.html): 兼容 Cisco Anyconnect 协议的 OpenConnect VPN
 * [cloudflare-warp](https://developers.cloudflare.com/warp-client/get-started/linux/): Cloudflare 提供的 socks5 代理
-* [openvpn howto](https://openvpn.net/community-resources/how-to/): OpenVPN HowTo
-* [openvpn ref](https://openvpn.net/community-resources/reference-manual-for-openvpn-2-4/): OpenVPN Manual
+* [OpenVPN](https://community.openvpn.net/openvpn/wiki/Downloads)：安全加密方式的 VPN
 
 ## 要求
 
@@ -62,6 +61,8 @@ cp ./config/openvpn/client/client-<username>.ovpn ./config/www/
 * [haproxy manual](https://docs.haproxy.org/dev/configuration.html)
 * [haproxy.com](https://www.haproxy.com/documentation/hapee/latest/load-balancing/protocols/http-2/)
 * [ocserv manual](https://ocserv.gitlab.io/www/manual.html)
+* [openvpn howto](https://openvpn.net/community-resources/how-to/)
+* [openvpn ref](https://openvpn.net/community-resources/reference-manual-for-openvpn-2-4/)
 * [科学上网 | 左耳朵耗子](https://haoel.github.io/#94-cloudflare-warp-%E5%8E%9F%E7%94%9F-ip)
 
 ## Todo
