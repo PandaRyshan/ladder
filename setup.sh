@@ -167,6 +167,23 @@ check_os_release() {
     fi
 }
 
+install_missing_packages() {
+    if ! command -v dialog &> /dev/null || ! command -v uuidgen &> /dev/null
+    then
+        echo "安装 dialog"
+        if [[ "${OS,,}" == *"debian"* ]] || [[ "${OS,,}" == *"ubuntu"* ]]; then
+            sudo apt-get update && sudo apt-get install -y dialog util-linux
+        elif [[ "${OS,,}" == *"centos"* ]] || [[ "${OS,,}" == *"fedora"* ]]; then
+            sudo dnf install -y dialog util-linux
+        elif [[ "${OS,,}" == *"arch"* ]]; then
+            sudo pacman -Sy --noconfirm dialog util-linux
+        else
+            echo "不支持的操作系统"
+            exit 1
+        fi
+    fi
+}
+
 check_docker_env() {
     echo "检查 docker 环境 Checking docker ..."
     if ! command -v docker &> /dev/null
@@ -414,10 +431,12 @@ EOF
   v2ray:
     image: pandasrun/v2ray:latest
     container_name: v2ray
+    environment:
+      - WAIT_PATHS=/etc/ssl/certs/priv-fullchain-bundle.pem
     volumes:
       - ./config/v2ray/config.json:/etc/v2ray/config.json
       - ./config/geodata:/usr/share/v2ray
-      - ./config/certs:/etc/letsencrypt
+      - ./config/certs/live/${DOMAIN}:/etc/ssl/certs
     networks:
       - ipv6
     restart: unless-stopped
@@ -507,10 +526,35 @@ v2ray_config() {
     },
     "inbounds": [
         {
+            "tag": "tcp",
+            "protocol": "vmess",
+            "listen": "0.0.0.0",
+            "port": 8001,
+            "settings": {
+                "clients": [
+                    {
+                        "id": "dbb0a3fc-5b10-47f0-a2d6-9e6807975219"
+                    }
+                ]
+            },
+            "streamSettings": {
+                "network": "tcp",
+                "security": "tls",
+                "tlsSettings": {
+                    "certificates": [
+                        {
+                            "certificateFile": "/etc/ssl/certs/priv-fullchain-bundle.pem",
+                            "keyFile": "/etc/ssl/certs/priv-fullchain-bundle.pem"
+                        }
+                    ]
+                }
+            }
+        },
+        {
             "tag": "h2",
             "protocol": "vmess",
             "listen": "0.0.0.0",
-            "port": 10086,
+            "port": 8002,
             "settings": {
                 "clients": [
                     {
@@ -526,7 +570,7 @@ v2ray_config() {
             "tag": "grpc",
             "protocol": "vmess",
             "listen": "0.0.0.0",
-            "port": 10088,
+            "port": 8003,
             "settings": {
                 "clients": [
                     {
@@ -545,7 +589,7 @@ v2ray_config() {
             "tag": "quic",
             "protocol": "vmess",
             "listen": "0.0.0.0",
-            "port": 10000,
+            "port": 8004,
             "settings": {
                 "clients": [
                     {
@@ -684,24 +728,41 @@ frontend tls-in
 
     tcp-request inspect-delay 5s
     tcp-request content accept if { req_ssl_hello_type 1 }
+    tcp-request content accept if HTTP
 
+    acl is_h2 req.ssl_alpn -i h2
+    acl is_h1 req.ssl_alpn -i http/1.1
     acl has_sni req.ssl_sni -m found
 
 EOF
 
+    if [[ "$DEPLOY_CHOICES" == *"1" ]]; then
+        cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
+    use_backend v2ray_tcp if !is_h1 !is_h2 has_sni
+EOF
+    fi
+
     if [[ "$DEPLOY_CHOICES" == *"3" ]]; then
         cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
-    use_backend openvpn if !has_sni
+    use_backend openvpn if !is_h1 !is_h2 !has_sni
 EOF
     fi
 
     cat <<-EOF >> ./config/haproxy/haproxy.tcp.cfg
-    use_backend nginx if has_sni
+    default_backend nginx
 
 backend nginx
     server nginx nginx:443
 
 EOF
+
+    if [[ "$DEPLOY_CHOICES" == *"1" ]]; then
+        cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
+backend v2ray_tcp
+    server v2ray v2ray:8001
+
+EOF
+    fi
 
     if [[ "$DEPLOY_CHOICES" == *"3"* ]]; then
         cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
@@ -777,7 +838,7 @@ server {
 }
 
 upstream grpc_backend {
-    server v2ray:10088;
+    server v2ray:8003;
     keepalive 500;
     keepalive_timeout 7d;
     keepalive_requests 100000;
@@ -879,20 +940,5 @@ output_v2ray_config() {
 
 # Main 主程序
 check_os_release
-
-if ! command -v dialog &> /dev/null
-then
-    echo "安装 dialog"
-    if [[ "${OS,,}" == *"debian"* ]] || [[ "${OS,,}" == *"ubuntu"* ]]; then
-        sudo apt-get update && sudo apt-get install -y dialog
-    elif [[ "${OS,,}" == *"centos"* ]] || [[ "${OS,,}" == *"fedora"* ]]; then
-        sudo dnf install -y dialog
-    elif [[ "${OS,,}" == *"arch"* ]]; then
-        sudo pacman -Sy --noconfirm dialog
-    else
-        echo "不支持的操作系统"
-        exit 1
-    fi
-fi
-
+install_missing_packages
 main_menu
