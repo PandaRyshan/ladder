@@ -1,5 +1,11 @@
 #!/bin/bash
 
+PREVIOUS_MENU=1
+MAIN_MENU=1
+DEPLOY_MENU=2
+INPUT_CONFIG_MENU=3
+SYSCTL_MENU=4
+
 main_menu() {
     items=(
         1 "状态 Status" on
@@ -26,7 +32,7 @@ main_menu() {
                 ;;
             2)
                 deploy_menu
-                input_config
+                input_config_menu
                 sysctl_menu
                 deploy
                 break
@@ -75,7 +81,8 @@ deploy_menu() {
     done
 }
 
-input_config() {
+input_config_menu() {
+    PREVIOUS_MENU=2
     TIMEZONE=${1:-"Asia/Shanghai"}
     DOMAIN=${2:-""}
     WARP_KEY=${3:-""}
@@ -101,26 +108,11 @@ input_config() {
         result=$(dialog "${dialog_args[@]}" 3>&1 1>&2 2>&3)
 
         exit_status=$?
+        exit_operation $exit_status
+
         TIMEZONE=$(sed -n '1p' <<< $result)
         DOMAIN=$(sed -n '2p' <<< $result)
         WARP_KEY=$(sed -n '3p' <<< $result)
-
-        case $exit_status in
-            1)
-                # Cancel
-                exit 0
-                ;;
-            3)
-                # Previous
-                main_menu
-                ;;
-            255)
-                # ESC
-                dialog --yesno "是否要退出？" 7 50
-                if [ $? -eq 0 ]; then
-                    exit 0
-                fi
-        esac
 
         if [ -z "$TIMEZONE" ] || [ -z "$DOMAIN" ]; then
             dialog --msgbox "所有信息均为必填，请继续输入。" 7 50
@@ -131,6 +123,7 @@ input_config() {
 }
 
 sysctl_menu() {
+    PREVIOUS_MENU=3
     while true; do
         dialog --clear \
             --title "优化 sysctl.conf" \
@@ -138,18 +131,7 @@ sysctl_menu() {
             --yesno "是否优化 sysctl.conf？" 7 50
 
         exit_status=$?
-        case $exit_status in
-            3)
-                # Previous
-                input_config $TIMEZONE $DOMAIN $WARP_KEY
-                ;;
-            255)
-                # ESC
-                dialog --yesno "是否要退出？" 7 50
-                if [ $? -eq 0 ]; then
-                    exit 0
-                fi
-        esac
+        exit_operation $exit_status
 
         dialog --yesno "确认开始部署？" 7 50
         if [ $? -eq 0 ]; then
@@ -157,6 +139,46 @@ sysctl_menu() {
             break
         fi
     done
+}
+
+back_previous_menu() {
+    case $PREVIOUS_MENU in
+        1)
+            main_menu
+            ;;
+        2)
+            deploy_menu
+            ;;
+        3)
+            input_config_menu $TIMEZONE $DOMAIN $WARP_KEY
+            ;;
+        4)
+            sysctl_menu
+            ;;
+    esac
+}
+
+exit_operation() {
+    exit_status=$1
+    case $exit_status in
+        1)
+            # Cancel
+            exit 0
+            ;;
+        3)
+            # Previous
+            back_previous_menu
+            break;
+            ;;
+        255)
+            # ESC
+            dialog --yesno "是否要退出？" 7 50
+            if [ $? -eq 0 ]; then
+                exit 0
+            else
+                break
+            fi
+    esac
 }
 
 check_os_release() {
@@ -889,26 +911,6 @@ down_containers() {
     {
         sudo docker compose down 2>&1
     } | dialog --title "正在卸载容器..." --programbox 20 70
-}
-
-exit_operation() {
-    exit_status=$1
-    case $exit_status in
-        1)
-            # Cancel
-            exit 0
-            ;;
-        3)
-            # Previous
-            main_menu
-            ;;
-        255)
-            # ESC
-            dialog --yesno "是否要退出？" 7 50
-            if [ $? -eq 0 ]; then
-                exit 0
-            fi
-    esac
 }
 
 prepare_workdir() {
