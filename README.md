@@ -4,17 +4,16 @@
 
 ## 组件
 
-* [v2ray](https://github.com/v2fly/v2ray-core): V2Ray 代理服务 + DNS
-* [haproxy](https://github.com/haproxy/haproxy): TCP 路由
-* [swag](https://github.com/linuxserver/docker-swag): HTTP 路由 + Web 服务 + CertBot
-* [ocserv](https://ocserv.gitlab.io/www/index.html): 兼容 Cisco Anyconnect 协议的 OpenConnect VPN
-* [cloudflare-warp](https://developers.cloudflare.com/warp-client/get-started/linux/): Cloudflare 提供的 socks5 代理
+* [V2Ray](https://github.com/v2fly/v2ray-core): V2Ray 代理服务 + DNS
+* [HAProxy](https://github.com/haproxy/haproxy): TCP 路由
+* [SWAG](https://github.com/linuxserver/docker-swag): HTTP 路由 + Web + CertBot
+* [Cloudflare-WARP](https://developers.cloudflare.com/warp-client/get-started/linux/): Cloudflare 提供的 socks5 代理
 * [OpenVPN](https://community.openvpn.net/openvpn/wiki/Downloads)：安全加密方式的 VPN
 
 ## 要求
 
 * 512MB RAM
-* Ubuntu, Debian, Arch, Fedora, CentOS
+* Ubuntu / Debian / Arch / Fedora / CentOS
 * 拥有一个域名，并解析到自己 VPS 的 IP
 * 确保 VPS 的 80 和 443 端口是开放的
 
@@ -33,24 +32,48 @@ chmod +x setup.sh
 ./setup.sh
 ```
 
+### 查看 V2Ray 配置
+
+V2Ray 配置在 ladder 目录下的 info.txt 内，可以使用 `cat` 命令查看
+
+### 将访问目标通过 v2ray 转发至 warp 访问
+
+修改 v2ray 的配置文件 `config/v2ray/config.json`，找到 `routing` 配置中的 `cf-warp` 项，可以添加希望通过 warp 访问的域名或 IP 地址，例如：
+
+```json
+"routing": {
+   "rules": [
+      {
+         "outboundTag": "cf-warp",
+         "type": "field",
+         "domain": [
+            "geosite:openai",
+            "example.com"
+         ]
+      },
+      {
+         "outboundTag": "cf-warp",
+         "type": "field",
+         "ip": [
+            "geoip:cn",
+            "10.10.10.0/24"
+         ]
+      }
+   ]
+}
+```
+
 ### 新建 OpenVPN 用户并下载客户端配置
 
 ```shell
-# 默认会把配置安装在 ladder 文件夹
-cd ladder
-
 # 把 <username> 替换为你想要的用户名
 docker exec openvpn /build-client.sh <username>
 
-# 把配置文件复制到 web 资源目录，之后可以访问 你的域名/client-<username>.ovpn 来下载客户端配置文件
+# 把配置文件复制到 web 资源目录，之后可以访问  https://你的域名/client-<username>.ovpn 来下载客户端配置文件
 cp ./config/openvpn/client/client-<username>.ovpn ./config/www/
 ```
 
 ## 问题
-
-1. 怎么配置 cloudflare warp
-
-   cloudflare warp 本身无需配置，只需在 config/v2ray/config.json 中的 warp 模块中，配置需要转发到 warp 的规则即可，v2ray 的规则编写可以参考 v2ray 文档
 
 ## 参考
 
