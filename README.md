@@ -44,20 +44,56 @@ V2Ray 配置在 ladder 目录下的 info.txt 内，可以使用 `cat` 命令查�
 "routing": {
    "rules": [
       {
-         "outboundTag": "cf-warp",
          "type": "field",
+         "outboundTag": "cf-warp",
          "domain": [
             "geosite:openai",
             "example.com"
          ]
       },
       {
-         "outboundTag": "cf-warp",
          "type": "field",
+         "outboundTag": "cf-warp",
          "ip": [
             "geoip:cn",
             "10.10.10.0/24"
          ]
+      }
+   ]
+}
+```
+
+### 转发所有请求至其他 v2ray 服务器
+
+增加 rules 规则，按 `inboundTag` 拦截所有请求并转发，例如：
+
+```json
+"outbounds": [
+   {
+      "tag": "my-remote-server",
+      "protocol": "vmess",
+      "settings": {
+         "vnext": [
+            "address": "my-remote-server.com",
+            "port": 443,
+            "users": [{"xxxxxx-xxxxxx-xxxxxx-xxxxxx"}]
+         ]
+      },
+      "streamSettings": {
+         "network": "grpc",
+         "security": "tls",
+         "grpcSettings": {
+            "serviceName": "xxxxxxxxxxxxxxxxxxxxxxx"
+         }
+      }
+   }
+]
+"routing": {
+   "rules": [
+      {
+         "type": "field",
+         "inboundTag": ["grpc", "tcp"]
+         "outboundTag": "my-remote-server"
       }
    ]
 }
