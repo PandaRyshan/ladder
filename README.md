@@ -68,12 +68,32 @@ V2Ray 配置在 ladder 目录下的 info.txt 内，可以使用 `cat` 命令查�
 增加 rules 规则，按 `inboundTag` 拦截所有请求并转发，例如：
 
 ```json
+"outbounds": [
+   {
+      "tag": "my-remote-server",
+      "protocol": "vmess",
+      "settings": {
+         "vnext": [
+            "address": "my-remote-server.com",
+            "port": 443,
+            "users": [{"xxxxxx-xxxxxx-xxxxxx-xxxxxx"}]
+         ]
+      },
+      "streamSettings": {
+         "network": "grpc",
+         "security": "tls",
+         "grpcSettings": {
+            "serviceName": "xxxxxxxxxxxxxxxxxxxxxxx"
+         }
+      }
+   }
+]
 "routing": {
    "rules": [
       {
          "type": "field",
          "inboundTag": ["grpc", "tcp"]
-         "outboundTag": "cf-warp"
+         "outboundTag": "my-remote-server"
       }
    ]
 }
