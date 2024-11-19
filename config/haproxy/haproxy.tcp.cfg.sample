@@ -23,14 +23,21 @@ frontend tls-in
 
     tcp-request inspect-delay 5s
     tcp-request content accept if { req_ssl_hello_type 1 }
+    tcp-request content accept if HTTP
 
+    acl is_h2 req.ssl_alpn -i h2
+    acl is_h1 req.ssl_alpn -i http/1.1
     acl has_sni req.ssl_sni -m found
 
-    use_backend openvpn if is_vpn
+    use_backend openvpn if !is_h1 !is_h2 !has_sni
+    use_backend v2ray_tcp if !is_h1 !is_h2 has_sni
     default_backend nginx
 
 backend openvpn
     server openvpn openvpn:443 send-proxy-v2
+
+backend v2ray_tcp
+    server v2ray v2ray:8001
 
 backend nginx
     server nginx nginx:443

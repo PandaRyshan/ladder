@@ -12,6 +12,9 @@ global
     # disable SSLv3, TLSv1.0, TLSv1.1
     ssl-default-bind-options no-sslv3 no-tlsv10 no-tlsv11
 
+    # Disable this when use a low performance CPU or has too much connection
+    #ssl-server-verify none
+
     # set DH length
     tune.ssl.default-dh-param 2048
 

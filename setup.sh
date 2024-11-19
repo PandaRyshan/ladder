@@ -1,5 +1,11 @@
 #!/bin/bash
 
+PREVIOUS_MENU=1
+MAIN_MENU=1
+DEPLOY_MENU=2
+INPUT_CONFIG_MENU=3
+SYSCTL_MENU=4
+
 main_menu() {
     items=(
         1 "状态 Status" on
@@ -21,30 +27,19 @@ main_menu() {
         exit_operation $exit_status
 
         case $choice in
-            1)
-                status_menu
-                ;;
+            1) status_menu ;;
             2)
                 deploy_menu
-                input_config
+                input_config_menu
                 sysctl_menu
                 deploy
                 break
                 ;;
-            3)
-                restart_containers
-                ;;
-            4)
-                upgrade_containers
-                ;;
-            5)
-                stop_containers
-                ;;
-            6)
-                down_containers
-                ;;
-            *)
-                ;;
+            3) restart_containers ;;
+            4) upgrade_containers ;;
+            5) stop_containers ;;
+            6) down_containers ;;
+            *) ;;
         esac
     done
 }
@@ -75,7 +70,8 @@ deploy_menu() {
     done
 }
 
-input_config() {
+input_config_menu() {
+    PREVIOUS_MENU=2
     TIMEZONE=${1:-"Asia/Shanghai"}
     DOMAIN=${2:-""}
     WARP_KEY=${3:-""}
@@ -101,26 +97,13 @@ input_config() {
         result=$(dialog "${dialog_args[@]}" 3>&1 1>&2 2>&3)
 
         exit_status=$?
+        if exit_operation $exit_status; then
+            break
+        fi
+
         TIMEZONE=$(sed -n '1p' <<< $result)
         DOMAIN=$(sed -n '2p' <<< $result)
         WARP_KEY=$(sed -n '3p' <<< $result)
-
-        case $exit_status in
-            1)
-                # Cancel
-                exit 0
-                ;;
-            3)
-                # Previous
-                main_menu
-                ;;
-            255)
-                # ESC
-                dialog --yesno "是否要退出？" 7 50
-                if [ $? -eq 0 ]; then
-                    exit 0
-                fi
-        esac
 
         if [ -z "$TIMEZONE" ] || [ -z "$DOMAIN" ]; then
             dialog --msgbox "所有信息均为必填，请继续输入。" 7 50
@@ -131,6 +114,7 @@ input_config() {
 }
 
 sysctl_menu() {
+    PREVIOUS_MENU=3
     while true; do
         dialog --clear \
             --title "优化 sysctl.conf" \
@@ -138,18 +122,7 @@ sysctl_menu() {
             --yesno "是否优化 sysctl.conf？" 7 50
 
         exit_status=$?
-        case $exit_status in
-            3)
-                # Previous
-                input_config $TIMEZONE $DOMAIN $WARP_KEY
-                ;;
-            255)
-                # ESC
-                dialog --yesno "是否要退出？" 7 50
-                if [ $? -eq 0 ]; then
-                    exit 0
-                fi
-        esac
+        exit_operation $exit_status
 
         dialog --yesno "确认开始部署？" 7 50
         if [ $? -eq 0 ]; then
@@ -159,11 +132,55 @@ sysctl_menu() {
     done
 }
 
+back_previous_menu() {
+    case $PREVIOUS_MENU in
+        1) main_menu ;;
+        2) deploy_menu ;;
+        3) input_config_menu $TIMEZONE $DOMAIN $WARP_KEY ;;
+        4) sysctl_menu ;;
+    esac
+}
+
+exit_operation() {
+    exit_status=$1
+    case $exit_status in
+        # Cancel
+        1) exit 0 ;;
+        # Previous
+        3) back_previous_menu; return ;;
+        # ESC
+        255)
+            dialog --yesno "是否要退出？" 7 50
+            if [ $? -eq 0 ]; then
+                exit 0
+            else
+                break
+            fi
+    esac
+}
+
 check_os_release() {
     echo "检查发行版 Checking os release..."
     if [ -f "/etc/os-release" ]; then
         . /etc/os-release
         OS=$NAME
+    fi
+}
+
+install_missing_packages() {
+    if ! command -v dialog &> /dev/null || ! command -v uuidgen &> /dev/null
+    then
+        echo "安装 dialog"
+        if [[ "${OS,,}" == *"debian"* ]] || [[ "${OS,,}" == *"ubuntu"* ]]; then
+            sudo apt-get update && sudo apt-get install -y dialog util-linux
+        elif [[ "${OS,,}" == *"centos"* ]] || [[ "${OS,,}" == *"fedora"* ]]; then
+            sudo dnf install -y dialog util-linux
+        elif [[ "${OS,,}" == *"arch"* ]]; then
+            sudo pacman -Sy --noconfirm dialog util-linux
+        else
+            echo "不支持的操作系统"
+            exit 1
+        fi
     fi
 }
 
@@ -414,10 +431,12 @@ EOF
   v2ray:
     image: pandasrun/v2ray:latest
     container_name: v2ray
+    environment:
+      - WAIT_PATHS=/etc/ssl/certs/priv-fullchain-bundle.pem
     volumes:
       - ./config/v2ray/config.json:/etc/v2ray/config.json
       - ./config/geodata:/usr/share/v2ray
-      - ./config/certs:/etc/letsencrypt
+      - ./config/certs/live/${DOMAIN}:/etc/ssl/certs
     networks:
       - ipv6
     restart: unless-stopped
@@ -507,10 +526,35 @@ v2ray_config() {
     },
     "inbounds": [
         {
+            "tag": "tcp",
+            "protocol": "vmess",
+            "listen": "0.0.0.0",
+            "port": 8001,
+            "settings": {
+                "clients": [
+                    {
+                        "id": "${UUID}"
+                    }
+                ]
+            },
+            "streamSettings": {
+                "network": "tcp",
+                "security": "tls",
+                "tlsSettings": {
+                    "certificates": [
+                        {
+                            "certificateFile": "/etc/ssl/certs/priv-fullchain-bundle.pem",
+                            "keyFile": "/etc/ssl/certs/priv-fullchain-bundle.pem"
+                        }
+                    ]
+                }
+            }
+        },
+        {
             "tag": "h2",
             "protocol": "vmess",
             "listen": "0.0.0.0",
-            "port": 10086,
+            "port": 8002,
             "settings": {
                 "clients": [
                     {
@@ -526,7 +570,7 @@ v2ray_config() {
             "tag": "grpc",
             "protocol": "vmess",
             "listen": "0.0.0.0",
-            "port": 10088,
+            "port": 8003,
             "settings": {
                 "clients": [
                     {
@@ -545,7 +589,7 @@ v2ray_config() {
             "tag": "quic",
             "protocol": "vmess",
             "listen": "0.0.0.0",
-            "port": 10000,
+            "port": 8004,
             "settings": {
                 "clients": [
                     {
@@ -601,13 +645,23 @@ v2ray_config() {
         },
         {
             "tag": "dns-out",
-            "protocol": "dns"
+            "protocol": "dns",
+            "proxySettings": {
+                "tag": "remote-proxy-out"
+            }
         }
     ],
     "routing": {
         "domainStrategy": "AsIs",
         "domainMatcher": "mph",
         "rules": [
+            {
+                "type": "field",
+                "inboundTag": [
+                    "dns-in"
+                ],
+                "outboundTag": "dns-out"
+            },
             {
                 "outboundTag": "cf-warp",
                 "type": "field",
@@ -684,24 +738,41 @@ frontend tls-in
 
     tcp-request inspect-delay 5s
     tcp-request content accept if { req_ssl_hello_type 1 }
+    tcp-request content accept if HTTP
 
+    acl is_h2 req.ssl_alpn -i h2
+    acl is_h1 req.ssl_alpn -i http/1.1
     acl has_sni req.ssl_sni -m found
 
 EOF
 
+    if [[ "$DEPLOY_CHOICES" == *"1" ]]; then
+        cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
+    use_backend v2ray_tcp if !is_h1 !is_h2 has_sni
+EOF
+    fi
+
     if [[ "$DEPLOY_CHOICES" == *"3" ]]; then
         cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
-    use_backend openvpn if !has_sni
+    use_backend openvpn if !is_h1 !is_h2 !has_sni
 EOF
     fi
 
     cat <<-EOF >> ./config/haproxy/haproxy.tcp.cfg
-    use_backend nginx if has_sni
+    default_backend nginx
 
 backend nginx
     server nginx nginx:443
 
 EOF
+
+    if [[ "$DEPLOY_CHOICES" == *"1" ]]; then
+        cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
+backend v2ray_tcp
+    server v2ray v2ray:8001
+
+EOF
+    fi
 
     if [[ "$DEPLOY_CHOICES" == *"3"* ]]; then
         cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
@@ -777,7 +848,7 @@ server {
 }
 
 upstream grpc_backend {
-    server v2ray:10088;
+    server v2ray:8003;
     keepalive 500;
     keepalive_timeout 7d;
     keepalive_requests 100000;
@@ -830,26 +901,6 @@ down_containers() {
     } | dialog --title "正在卸载容器..." --programbox 20 70
 }
 
-exit_operation() {
-    exit_status=$1
-    case $exit_status in
-        1)
-            # Cancel
-            exit 0
-            ;;
-        3)
-            # Previous
-            main_menu
-            ;;
-        255)
-            # ESC
-            dialog --yesno "是否要退出？" 7 50
-            if [ $? -eq 0 ]; then
-                exit 0
-            fi
-    esac
-}
-
 prepare_workdir() {
     cd "$(dirname "$0")"
     if [[ "$(basename "$PWD")" != "ladder" ]]; then
@@ -879,20 +930,5 @@ output_v2ray_config() {
 
 # Main 主程序
 check_os_release
-
-if ! command -v dialog &> /dev/null
-then
-    echo "安装 dialog"
-    if [[ "${OS,,}" == *"debian"* ]] || [[ "${OS,,}" == *"ubuntu"* ]]; then
-        sudo apt-get update && sudo apt-get install -y dialog
-    elif [[ "${OS,,}" == *"centos"* ]] || [[ "${OS,,}" == *"fedora"* ]]; then
-        sudo dnf install -y dialog
-    elif [[ "${OS,,}" == *"arch"* ]]; then
-        sudo pacman -Sy --noconfirm dialog
-    else
-        echo "不支持的操作系统"
-        exit 1
-    fi
-fi
-
+install_missing_packages
 main_menu

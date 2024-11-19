@@ -4,10 +4,7 @@
     },
     "dns": {
         "hosts": {
-            "geosite:category-ads-all": "127.0.0.1",
-            "epdg.epc.mnc260.mcc310.pub.3gppnetwork.org": "208.54.35.163",
-            "ss.epdg.epc.mnc260.mcc310.pub.3gppnetwork.org": "208.54.35.163",
-            "ss.epdg.epc.geo.mnc260.mcc310.pub.3gppnetwork.org": "208.54.87.3"
+            "geosite:category-ads-all": "127.0.0.1"
         },
         "servers": [
             "1.1.1.1",
@@ -140,15 +137,7 @@
                 "outboundTag": "cf-warp",
                 "type": "field",
                 "domain": [
-                    // "geosite": "openai"
-                    "domain:foo.example.com"
-                ]
-            },
-            {
-                "outboundTag": "cf-warp",
-                "type": "field",
-                "ip": [
-                    "geoip:netflix"
+                    "geosite:openai"
                 ]
             },
             {
