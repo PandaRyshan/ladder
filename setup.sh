@@ -27,9 +27,7 @@ main_menu() {
         exit_operation $exit_status
 
         case $choice in
-            1)
-                status_menu
-                ;;
+            1) status_menu ;;
             2)
                 deploy_menu
                 input_config_menu
@@ -37,20 +35,11 @@ main_menu() {
                 deploy
                 break
                 ;;
-            3)
-                restart_containers
-                ;;
-            4)
-                upgrade_containers
-                ;;
-            5)
-                stop_containers
-                ;;
-            6)
-                down_containers
-                ;;
-            *)
-                ;;
+            3) restart_containers ;;
+            4) upgrade_containers ;;
+            5) stop_containers ;;
+            6) down_containers ;;
+            *) ;;
         esac
     done
 }
@@ -108,7 +97,9 @@ input_config_menu() {
         result=$(dialog "${dialog_args[@]}" 3>&1 1>&2 2>&3)
 
         exit_status=$?
-        exit_operation $exit_status
+        if exit_operation $exit_status; then
+            break
+        fi
 
         TIMEZONE=$(sed -n '1p' <<< $result)
         DOMAIN=$(sed -n '2p' <<< $result)
@@ -143,35 +134,22 @@ sysctl_menu() {
 
 back_previous_menu() {
     case $PREVIOUS_MENU in
-        1)
-            main_menu
-            ;;
-        2)
-            deploy_menu
-            ;;
-        3)
-            input_config_menu $TIMEZONE $DOMAIN $WARP_KEY
-            ;;
-        4)
-            sysctl_menu
-            ;;
+        1) main_menu ;;
+        2) deploy_menu ;;
+        3) input_config_menu $TIMEZONE $DOMAIN $WARP_KEY ;;
+        4) sysctl_menu ;;
     esac
 }
 
 exit_operation() {
     exit_status=$1
     case $exit_status in
-        1)
-            # Cancel
-            exit 0
-            ;;
-        3)
-            # Previous
-            back_previous_menu
-            break;
-            ;;
+        # Cancel
+        1) exit 0 ;;
+        # Previous
+        3) back_previous_menu; return ;;
+        # ESC
         255)
-            # ESC
             dialog --yesno "是否要退出？" 7 50
             if [ $? -eq 0 ]; then
                 exit 0
@@ -555,7 +533,7 @@ v2ray_config() {
             "settings": {
                 "clients": [
                     {
-                        "id": "dbb0a3fc-5b10-47f0-a2d6-9e6807975219"
+                        "id": "${UUID}"
                     }
                 ]
             },
@@ -667,13 +645,23 @@ v2ray_config() {
         },
         {
             "tag": "dns-out",
-            "protocol": "dns"
+            "protocol": "dns",
+            "proxySettings": {
+                "tag": "remote-proxy-out"
+            }
         }
     ],
     "routing": {
         "domainStrategy": "AsIs",
         "domainMatcher": "mph",
         "rules": [
+            {
+                "type": "field",
+                "inboundTag": [
+                    "dns-in"
+                ],
+                "outboundTag": "dns-out"
+            },
             {
                 "outboundTag": "cf-warp",
                 "type": "field",
