@@ -97,9 +97,10 @@ input_config_menu() {
         result=$(dialog "${dialog_args[@]}" 3>&1 1>&2 2>&3)
 
         exit_status=$?
-        if exit_operation $exit_status; then
-            break
-        fi
+        exit_operation $exit_status
+        # if exit_operation $exit_status; then
+        #     break
+        # fi
 
         TIMEZONE=$(sed -n '1p' <<< $result)
         DOMAIN=$(sed -n '2p' <<< $result)
@@ -372,9 +373,9 @@ EOF
 
 env_config() {
     cat <<- EOF > .env
-TZ=$timezone
-DOMAIN=$domain
-WARP_KEY=$warp_key
+TZ=${TIMEZONE}
+DOMAIN=${DOMAIN}
+WARP_KEY=${WARP_KEY}
 EOF
 }
 
