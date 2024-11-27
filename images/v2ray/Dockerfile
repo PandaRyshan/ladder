@@ -1,8 +1,8 @@
-FROM alpine:latest
+FROM alpine:edge
 
 LABEL maintainer="Hu Xiaohong <xiaohong@pandas.run>"
 
-ENV VERSION="v5.18.0"
+ENV VERSION="v5.22.0"
 ENV ZIPFILE="v2ray-linux-64.zip"
 ENV URL="https://github.com/v2fly/v2ray-core/releases/download/${VERSION}/${ZIPFILE}"
 
@@ -17,8 +17,7 @@ RUN apk update \
         && apk del curl unzip \
         && rm -rf /var/cache/apk/* ${ZIPFILE}
 
+COPY docker-entrypoint.sh /usr/bin/docker-entrypoint.sh
 COPY --from=ghcr.io/ufoscout/docker-compose-wait:latest /wait /wait
 
-ENTRYPOINT [ "v2ray", "run", "-c", "/etc/v2ray/config.json" ]
-
-EXPOSE 8001
+ENTRYPOINT [ "docker-entrypoint.sh" ]
