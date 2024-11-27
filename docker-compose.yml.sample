@@ -3,10 +3,12 @@ services:
   v2ray:
     image: pandasrun/v2ray:latest
     container_name: v2ray
+    environment:
+      - WAIT_PATHS=/etc/ssl/certs/v2ray/priv-fullchain-bundle.pem
     volumes:
       - ./config/v2ray/config.json:/etc/v2ray/config.json
       - ./config/geodata:/usr/share/v2ray
-      - ./config/certs:/etc/letsencrypt
+      - ./config/certs/live/${DOMAIN}:/etc/ssl/certs/v2ray
     networks:
       - ipv6
     restart: unless-stopped
