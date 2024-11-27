@@ -433,11 +433,11 @@ EOF
     image: pandasrun/v2ray:latest
     container_name: v2ray
     environment:
-      - WAIT_PATHS=/etc/ssl/certs/priv-fullchain-bundle.pem
+      - WAIT_PATHS=/etc/ssl/certs/v2ray/priv-fullchain-bundle.pem
     volumes:
       - ./config/v2ray/config.json:/etc/v2ray/config.json
       - ./config/geodata:/usr/share/v2ray
-      - ./config/certs/live/${DOMAIN}:/etc/ssl/certs
+      - ./config/certs/live/${DOMAIN}:/etc/ssl/certs/v2ray
     networks:
       - ipv6
     restart: unless-stopped
@@ -544,8 +544,8 @@ v2ray_config() {
                 "tlsSettings": {
                     "certificates": [
                         {
-                            "certificateFile": "/etc/ssl/certs/priv-fullchain-bundle.pem",
-                            "keyFile": "/etc/ssl/certs/priv-fullchain-bundle.pem"
+                            "certificateFile": "/etc/ssl/certs/v2ray/priv-fullchain-bundle.pem",
+                            "keyFile": "/etc/ssl/certs/v2ray/priv-fullchain-bundle.pem"
                         }
                     ]
                 }
