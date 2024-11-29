@@ -747,13 +747,13 @@ frontend tls-in
 
 EOF
 
-    if [[ "$DEPLOY_CHOICES" == *"1" ]]; then
+    if [[ "$DEPLOY_CHOICES" == *"1"* ]]; then
         cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
     use_backend v2ray_tcp if !is_h1 !is_h2 has_sni
 EOF
     fi
 
-    if [[ "$DEPLOY_CHOICES" == *"3" ]]; then
+    if [[ "$DEPLOY_CHOICES" == *"3"* ]]; then
         cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
     use_backend openvpn if !is_h1 !is_h2 !has_sni
 EOF
@@ -767,7 +767,7 @@ backend nginx
 
 EOF
 
-    if [[ "$DEPLOY_CHOICES" == *"1" ]]; then
+    if [[ "$DEPLOY_CHOICES" == *"1"* ]]; then
         cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
 backend v2ray_tcp
     server v2ray v2ray:8001
