@@ -57,6 +57,7 @@ deploy_menu() {
             1 "V2Ray" on \
             2 "Warp" off \
             3 "OpenVPN" off \
+            4 "SmokePing" off \
             3>&1 1>&2 2>&3)
 
         exit_status=$?
@@ -208,7 +209,7 @@ EOF
         # Uninstall conflicting packages:
         for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do sudo apt-get remove $pkg; done;
         sudo apt-get update
-        sudo apt-get install -y ca-certificates curl
+        sudo apt-get install -y ca-certificates curl uuid-runtime
         sudo install -m 0755 -d /etc/apt/keyrings
         sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
         sudo chmod a+r /etc/apt/keyrings/docker.asc
@@ -222,7 +223,7 @@ EOF
     elif [[ "${OS,,}" == *"debian"* ]]; then
         for pkg in docker.io docker-doc docker-compose podman-docker containerd runc; do sudo apt-get remove $pkg; done
         sudo apt-get update
-        sudo apt-get install -y ca-certificates curl
+        sudo apt-get install -y ca-certificates curl uuid-runtime
         sudo install -m 0755 -d /etc/apt/keyrings
         sudo curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
         sudo chmod a+r /etc/apt/keyrings/docker.asc
@@ -242,9 +243,9 @@ EOF
                   docker-latest-logrotate \
                   docker-logrotate \
                   docker-engine
-        sudo yum install -y yum-utils
+        sudo yum install -y yum-utils util-linux
         sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-        sudo yum install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin wget git uuid-runtime
+        sudo yum install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
     elif [[ "${OS,,}" == *"fedora"* ]]; then
         sudo dnf remove docker \
                   docker-client \
@@ -256,11 +257,10 @@ EOF
                   docker-selinux \
                   docker-engine-selinux \
                   docker-engine
-        sudo dnf install -y dnf-plugins-core
+        sudo dnf install -y dnf-plugins-core util-linux
         sudo dnf config-manager --add-repo https://download.docker.com/linux/fedora/docker-ce.repo
     elif [[ "${OS,,}" == *"arch"* ]]; then
-        sudo dnf install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin wget git uuid-runtime
-        sudo pacman -Syy && sudo pacman -S --noconfirm docker docker-compose wget git
+        sudo pacman -Syy && sudo pacman -S --noconfirm docker docker-compose util-linux
     else
         echo "Unsupported operating system"
         exit 1
@@ -484,6 +484,26 @@ EOF
 
 EOF
     fi
+
+    if [[ "$DEPLOY_CHOICES" == *"4"* ]]; then
+        smokeping_config
+        cat <<- EOF >> docker-compose.yaml
+  smokeping:
+    image: lscr.io/linuxserver/smokeping:latest
+    container_name: smokeping
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Asia/Shanghai
+      #- MASTER_URL= #optional
+      #- SHARED_SECRET=password #optional
+      #- CACHE_DIR=/tmp #optional
+    volumes:
+      - ./config:/config
+      - ./data:/data
+    restart: unless-stopped
+
+EOF
 
     cat <<- EOF >> docker-compose.yaml
 networks:
@@ -842,7 +862,17 @@ server {
         grpc_set_header X-Real-IP \$remote_addr;
         grpc_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
     }
+EOF
 
+    if [[ "$DEPLOY_CHOICES" == *"4"* ]]; then
+    cat <<- EOF > ./config/nginx/site-confs/default.conf
+    location /smokeping {
+        proxy_pass http://smokeping:80;
+    }
+EOF
+    fi
+
+    cat <<- EOF > ./config/nginx/site-confs/default.conf
     location ~ /\.ht {
         deny all;
     }
@@ -857,6 +887,171 @@ upstream grpc_backend {
 
 include /config/nginx/proxy-confs/*.subdomain.conf;
 proxy_cache_path cache/ keys_zone=auth_cache:10m;
+EOF
+}
+
+smokeping_config() {
+    echo "写入 SmokePing 配置... Writing SmokePing config..."
+    mkdir -p ./config/smokeping
+    cat <<- EOF > ./config/smokeping/Targets
+*** Targets ***
+
+probe = FPing
+
+menu = Top
+title = Network Latency Grapher
+remark = Welcome to the SmokePing website of WORKS Company. \
+         Here you will learn all about the latency of our network.
+
++ InternetSites
+
+menu = Internet Sites
+title = Internet Sites
+
+++ BeijingUnicom
+menu = Beijing Unicom
+title = Beijing Unicom
+host = 202.106.50.1
+
+++ BeijingTelecom
+menu = Beijing Telecom
+title = Beijing Telecom
+host = 219.141.136.12
+
+++ BeijingMobile
+menu = Beijing Mobile
+title = Beijing Mobile
+host = 221.179.155.161
+
+++ X.com
+menu = X.com
+title = X.com
+host = x.com
+
+++ Youtube
+menu = YouTube
+title = YouTube
+host = youtube.com
+
+++ JupiterBroadcasting
+menu = JupiterBroadcasting
+title = JupiterBroadcasting
+host = jupiterbroadcasting.com
+
+++ GoogleSearch
+menu = Google
+title = google.com
+host = google.com
+
+++ GoogleSearchIpv6
+menu = Google
+probe = FPing6
+title = ipv6.google.com
+host = ipv6.google.com
+
+++ linuxserverio
+menu = linuxserver.io
+title = linuxserver.io
+host = linuxserver.io
+
++ DNS
+menu = DNS
+title = DNS
+
+++ GoogleDNS1
+menu = Google DNS 1
+title = Google DNS 8.8.8.8
+host = 8.8.8.8
+
+++ GoogleDNS2
+menu = Google DNS 2
+title = Google DNS 8.8.4.4
+host = 8.8.4.4
+
+++ OpenDNS1
+menu = OpenDNS1
+title = OpenDNS1
+host = 208.67.222.222
+
+++ OpenDNS2
+menu = OpenDNS2
+title = OpenDNS2
+host = 208.67.220.220
+
+++ CloudflareDNS1
+menu = Cloudflare DNS 1
+title = Cloudflare DNS 1.1.1.1
+host = 1.1.1.1
+
+++ CloudflareDNS2
+menu = Cloudflare DNS 2
+title = Cloudflare DNS 1.0.0.1
+host = 1.0.0.1
+
+++ L3-1
+menu = Level3 DNS 1
+title = Level3 DNS 4.2.2.1
+host = 4.2.2.1
+
+++ L3-2
+menu = Level3 DNS 2
+title = Level3 DNS 4.2.2.2
+host = 4.2.2.2
+
+++ Quad9
+menu = Quad9
+title = Quad9 DNS 9.9.9.9
+host = 9.9.9.9
+
++ DNSProbes
+menu = DNS Probes
+title = DNS Probes
+probe = DNS
+
+++ GoogleDNS1
+menu = Google DNS 1
+title = Google DNS 8.8.8.8
+host = 8.8.8.8
+
+++ GoogleDNS2
+menu = Google DNS 2
+title = Google DNS 8.8.4.4
+host = 8.8.4.4
+
+++ OpenDNS1
+menu = OpenDNS1
+title = OpenDNS1
+host = 208.67.222.222
+
+++ OpenDNS2
+menu = OpenDNS2
+title = OpenDNS2
+host = 208.67.220.220
+
+++ CloudflareDNS1
+menu = Cloudflare DNS 1
+title = Cloudflare DNS 1.1.1.1
+host = 1.1.1.1
+
+++ CloudflareDNS2
+menu = Cloudflare DNS 2
+title = Cloudflare DNS 1.0.0.1
+host = 1.0.0.1
+
+++ L3-1
+menu = Level3 DNS 1
+title = Level3 DNS 4.2.2.1
+host = 4.2.2.1
+
+++ L3-2
+menu = Level3 DNS 2
+title = Level3 DNS 4.2.2.2
+host = 4.2.2.2
+
+++ Quad9
+menu = Quad9
+title = Quad9 DNS 9.9.9.9
+host = 9.9.9.9
 EOF
 }
 
