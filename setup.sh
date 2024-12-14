@@ -504,6 +504,7 @@ EOF
     restart: unless-stopped
 
 EOF
+    fi
 
     cat <<- EOF >> docker-compose.yaml
 networks:
