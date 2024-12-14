@@ -174,7 +174,7 @@ install_missing_packages() {
     then
         echo "安装 dialog"
         if [[ "${OS,,}" == *"debian"* ]] || [[ "${OS,,}" == *"ubuntu"* ]]; then
-            sudo apt-get update && sudo apt-get install -y dialog util-linux
+            sudo apt-get update && sudo apt-get install -y dialog util-linux uuid-runtime
         elif [[ "${OS,,}" == *"centos"* ]] || [[ "${OS,,}" == *"fedora"* ]]; then
             sudo dnf install -y dialog util-linux
         elif [[ "${OS,,}" == *"arch"* ]]; then
@@ -209,7 +209,7 @@ EOF
         # Uninstall conflicting packages:
         for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do sudo apt-get remove $pkg; done;
         sudo apt-get update
-        sudo apt-get install -y ca-certificates curl uuid-runtime
+        sudo apt-get install -y ca-certificates curl
         sudo install -m 0755 -d /etc/apt/keyrings
         sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
         sudo chmod a+r /etc/apt/keyrings/docker.asc
@@ -866,14 +866,14 @@ server {
 EOF
 
     if [[ "$DEPLOY_CHOICES" == *"4"* ]]; then
-    cat <<- EOF > ./config/nginx/site-confs/default.conf
+    cat <<- EOF >> ./config/nginx/site-confs/default.conf
     location /smokeping {
         proxy_pass http://smokeping:80;
     }
 EOF
     fi
 
-    cat <<- EOF > ./config/nginx/site-confs/default.conf
+    cat <<- EOF >> ./config/nginx/site-confs/default.conf
     location ~ /\.ht {
         deny all;
     }
