@@ -1,0 +1,193 @@
+*** Targets ***
+
+probe = FPing
+
+menu = Top
+title = Network Latency Grapher
+remark = Welcome to the SmokePing website of WORKS Company. \
+         Here you will learn all about the latency of our network.
+
++ ChineseISP
+
+menu = Chinese ISP
+title = 国内运营商
+
+++ BeijingUnicom
+menu = 北京联通
+title = 北京联通
+host = 202.106.50.1
+
+++ BeijingTelecom
+menu = 北京电信
+title = 北京电信
+host = 219.141.136.12
+
+++ BeijingMobile
+menu = 北京移动
+title = 北京移动
+host = 221.179.155.161
+
+++ HefeiUnicom
+menu = 合肥联通
+title = 合肥联通
+host = 112.122.156.218
+
+++ HefeiTelecom
+menu = 合肥电信
+title = 合肥电信
+host = 61.190.2.2
+
+++ HefeiMobile
+menu = 合肥移动
+title = 合肥移动
+host = 211.138.180.2
+
+++ LanzhouUnicom
+menu = 兰州联通
+title = 兰州联通
+host = 124.152.99.1
+
+++ LanzhouTelecom
+menu = 兰州电信
+title = 兰州电信
+host = 60.165.116.49
+
+++ LanzhouMobile
+menu = 兰州移动
+title = 兰州移动
+host = 218.203.160.194
+
+++ GuangzhouUnicom
+menu = 广州联通
+title = 广州联通
+host = 221.5.88.88
+
+++ GuangzhouTelecom
+menu = 广州电信
+title = 广州电信
+host = 103.44.246.87
+
+++ GuangzhouMobile
+menu = 广州移动
+title = 广州移动
+host = 120.240.116.240
+
++ InternetSites
+
+menu = Internet Sites
+title = Internet Sites
+
+++ Youtube
+menu = YouTube
+title = YouTube
+host = youtube.com
+
+++ GoogleSearch
+menu = Google
+title = google.com
+host = google.com
+
+++ GoogleSearchIpv6
+menu = Google
+probe = FPing6
+title = ipv6.google.com
+host = ipv6.google.com
+
++ DNS
+menu = DNS
+title = DNS
+
+++ GoogleDNS1
+menu = Google DNS 1
+title = Google DNS 8.8.8.8
+host = 8.8.8.8
+
+++ GoogleDNS2
+menu = Google DNS 2
+title = Google DNS 8.8.4.4
+host = 8.8.4.4
+
+++ OpenDNS1
+menu = OpenDNS1
+title = OpenDNS1
+host = 208.67.222.222
+
+++ OpenDNS2
+menu = OpenDNS2
+title = OpenDNS2
+host = 208.67.220.220
+
+++ CloudflareDNS1
+menu = Cloudflare DNS 1
+title = Cloudflare DNS 1.1.1.1
+host = 1.1.1.1
+
+++ CloudflareDNS2
+menu = Cloudflare DNS 2
+title = Cloudflare DNS 1.0.0.1
+host = 1.0.0.1
+
+++ L3-1
+menu = Level3 DNS 1
+title = Level3 DNS 4.2.2.1
+host = 4.2.2.1
+
+++ L3-2
+menu = Level3 DNS 2
+title = Level3 DNS 4.2.2.2
+host = 4.2.2.2
+
+++ Quad9
+menu = Quad9
+title = Quad9 DNS 9.9.9.9
+host = 9.9.9.9
+
++ DNSProbes
+menu = DNS Probes
+title = DNS Probes
+probe = DNS
+
+++ GoogleDNS1
+menu = Google DNS 1
+title = Google DNS 8.8.8.8
+host = 8.8.8.8
+
+++ GoogleDNS2
+menu = Google DNS 2
+title = Google DNS 8.8.4.4
+host = 8.8.4.4
+
+++ OpenDNS1
+menu = OpenDNS1
+title = OpenDNS1
+host = 208.67.222.222
+
+++ OpenDNS2
+menu = OpenDNS2
+title = OpenDNS2
+host = 208.67.220.220
+
+++ CloudflareDNS1
+menu = Cloudflare DNS 1
+title = Cloudflare DNS 1.1.1.1
+host = 1.1.1.1
+
+++ CloudflareDNS2
+menu = Cloudflare DNS 2
+title = Cloudflare DNS 1.0.0.1
+host = 1.0.0.1
+
+++ L3-1
+menu = Level3 DNS 1
+title = Level3 DNS 4.2.2.1
+host = 4.2.2.1
+
+++ L3-2
+menu = Level3 DNS 2
+title = Level3 DNS 4.2.2.2
+host = 4.2.2.2
+
+++ Quad9
+menu = Quad9
+title = Quad9 DNS 9.9.9.9
+host = 9.9.9.9
