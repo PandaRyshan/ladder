@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# 检查是否以 root 身份运行或以 sudo 权限运行
+if [ "$EUID" -ne 0 ] && [ -z "$SUDO_USER" ]; then
+  echo "请以 root 身份或使用 sudo 运行此脚本"
+  exit 1
+fi
+
 PREVIOUS_MENU=1
 MAIN_MENU=1
 DEPLOY_MENU=2
@@ -45,7 +51,7 @@ main_menu() {
 }
 
 status_menu() {
-    sudo docker compose ps 2>&1 | dialog --title "容器状态" --programbox 20 70
+    docker compose ps 2>&1 | dialog --title "容器状态" --programbox 20 70
 }
 
 deploy_menu() {
@@ -81,18 +87,23 @@ input_config_menu() {
             --title "V2Ray 配置" \
             --extra-button --extra-label "Previous" \
             --mixedform "请输入 V2Ray 配置信息：" 15 50 5 \
+            "时区：" 1 1 "$TIMEZONE" 1 13 30 30 0 \
+            "域名：" 2 1 "$DOMAIN" 2 13 30 30 0
         )
 
         # 判断 DEPLOY_CHOICES 中是否包含 Warp 选项，如存在则添加 Warp Key 输入框
         if [[ $DEPLOY_CHOICES == *"2"* ]]; then
             dialog_args+=(
-                "时区：" 1 1 "$TIMEZONE" 1 12 30 30 0 \
-                "域名：" 2 1 "$DOMAIN" 2 12 30 30 0 \
-                "Warp Key：" 3 1 "$WARP_KEY" 3 12 30 30 0)
-        else
+                \
+                "Warp Key：" 3 1 "$WARP_KEY" 3 13 30 30 0 )
+        fi
+
+        if [[ $DEPLOY_CHOICES == *"4"* ]]; then
             dialog_args+=(
-                "时区：" 1 1 "$TIMEZONE" 1 8 30 30 0 \
-                "域名：" 2 1 "$DOMAIN" 2 8 30 30 0)
+                \
+                "Master URL：" 4 1 "$MASTER_URL" 4 13 30 30 0 \
+                "Secret：" 4 1 "$SHARED_SECRET" 4 13 30 30 0
+            )
         fi
 
         result=$(dialog "${dialog_args[@]}" 3>&1 1>&2 2>&3)
@@ -106,6 +117,7 @@ input_config_menu() {
         TIMEZONE=$(sed -n '1p' <<< $result)
         DOMAIN=$(sed -n '2p' <<< $result)
         WARP_KEY=$(sed -n '3p' <<< $result)
+        MASTER_URL=$(sed -n '4p' <<< $result)
 
         if [ -z "$TIMEZONE" ] || [ -z "$DOMAIN" ]; then
             dialog --msgbox "所有信息均为必填，请继续输入。" 7 50
@@ -161,6 +173,39 @@ exit_operation() {
     esac
 }
 
+deploy() {
+    {
+        prepare_workdir
+        prepare_configs
+        docker compose pull 2>&1
+        docker compose up -d 2>&1
+        output_v2ray_config
+    } | dialog --title "正在部署... Deploying..." --programbox 30 100
+}
+
+prepare_configs() {
+        if [[ "$DEPLOY_CHOICES" == *"3"* ]]; then
+            check_tun_device
+        fi
+        check_docker_env
+        enable_docker_ipv6
+        sysctl_config
+        env_config
+        docker_compose_config
+        v2ray_config
+        haproxy_config
+        nginx_config
+}
+
+check_tun_device() {
+    if [ ! -c /dev/net/tun ]; then
+        echo "创建 TUN 设备 Creating TUN device..."
+        mkdir -p /dev/net
+        mknod /dev/net/tun c 10 200
+        chmod 600 /dev/net/tun
+    fi
+}
+
 check_os_release() {
     echo "检查发行版 Checking os release..."
     if [ -f "/etc/os-release" ]; then
@@ -174,11 +219,11 @@ install_missing_packages() {
     then
         echo "安装 dialog"
         if [[ "${OS,,}" == *"debian"* ]] || [[ "${OS,,}" == *"ubuntu"* ]]; then
-            sudo apt-get update && sudo apt-get install -y dialog util-linux uuid-runtime
+            apt-get update && apt-get install -y dialog util-linux uuid-runtime
         elif [[ "${OS,,}" == *"centos"* ]] || [[ "${OS,,}" == *"fedora"* ]]; then
-            sudo dnf install -y dialog util-linux
+            dnf install -y dialog util-linux
         elif [[ "${OS,,}" == *"arch"* ]]; then
-            sudo pacman -Sy --noconfirm dialog util-linux
+            pacman -Sy --noconfirm dialog util-linux
         else
             echo "不支持的操作系统"
             exit 1
@@ -197,7 +242,7 @@ check_docker_env() {
 install_docker() {
     echo "安装 docker 环境 Checking docker..."
     # enable ipv6 support
-    sudo mkdir -p /etc/docker
+    mkdir -p /etc/docker
     cat <<- EOF > /etc/docker/daemon.json
 {
     "experimental": true,
@@ -207,35 +252,35 @@ EOF
 
     if [[ "${OS,,}" == *"ubuntu"* ]]; then
         # Uninstall conflicting packages:
-        for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do sudo apt-get remove $pkg; done;
-        sudo apt-get update
-        sudo apt-get install -y ca-certificates curl
-        sudo install -m 0755 -d /etc/apt/keyrings
-        sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-        sudo chmod a+r /etc/apt/keyrings/docker.asc
+        for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do apt-get remove $pkg; done;
+        apt-get update
+        apt-get install -y ca-certificates curl
+        install -m 0755 -d /etc/apt/keyrings
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+        chmod a+r /etc/apt/keyrings/docker.asc
 
         echo \
         "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
         $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
-        sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-        sudo apt-get update
-        sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+        tee /etc/apt/sources.list.d/docker.list > /dev/null
+        apt-get update
+        apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
     elif [[ "${OS,,}" == *"debian"* ]]; then
-        for pkg in docker.io docker-doc docker-compose podman-docker containerd runc; do sudo apt-get remove $pkg; done
-        sudo apt-get update
-        sudo apt-get install -y ca-certificates curl uuid-runtime
-        sudo install -m 0755 -d /etc/apt/keyrings
-        sudo curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
-        sudo chmod a+r /etc/apt/keyrings/docker.asc
+        for pkg in docker.io docker-doc docker-compose podman-docker containerd runc; do apt-get remove $pkg; done
+        apt-get update
+        apt-get install -y ca-certificates curl uuid-runtime
+        install -m 0755 -d /etc/apt/keyrings
+        curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
+        chmod a+r /etc/apt/keyrings/docker.asc
 
         echo \
         "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian \
         $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
-        sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-        sudo apt-get update
-        sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+        tee /etc/apt/sources.list.d/docker.list > /dev/null
+        apt-get update
+        apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
     elif [[ "${OS,,}" == *"centos"* ]]; then
-        sudo yum remove docker \
+        yum remove docker \
                   docker-client \
                   docker-client-latest \
                   docker-common \
@@ -243,11 +288,11 @@ EOF
                   docker-latest-logrotate \
                   docker-logrotate \
                   docker-engine
-        sudo yum install -y yum-utils util-linux
-        sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-        sudo yum install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+        yum install -y yum-utils util-linux
+        yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+        yum install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
     elif [[ "${OS,,}" == *"fedora"* ]]; then
-        sudo dnf remove docker \
+        dnf remove docker \
                   docker-client \
                   docker-client-latest \
                   docker-common \
@@ -257,49 +302,28 @@ EOF
                   docker-selinux \
                   docker-engine-selinux \
                   docker-engine
-        sudo dnf install -y dnf-plugins-core util-linux
-        sudo dnf config-manager --add-repo https://download.docker.com/linux/fedora/docker-ce.repo
+        dnf install -y dnf-plugins-core util-linux
+        dnf config-manager --add-repo https://download.docker.com/linux/fedora/docker-ce.repo
     elif [[ "${OS,,}" == *"arch"* ]]; then
-        sudo pacman -Syy && sudo pacman -S --noconfirm docker docker-compose util-linux
+        pacman -Syy && pacman -S --noconfirm docker docker-compose util-linux
     else
         echo "Unsupported operating system"
         exit 1
     fi
 
-    sudo usermod -a -G docker $USER
+    usermod -a -G docker $USER
     enable_docker_service
 }
 
 enable_docker_service() {
-    sudo systemctl enable docker 2>&1
-    sudo systemctl start docker 2>&1
-}
-
-deploy() {
-    {
-        prepare_workdir
-        prepare_configs
-        docker compose pull 2>&1
-        docker compose up -d 2>&1
-        output_v2ray_config
-    } | dialog --title "正在部署... Deploying..." --programbox 30 100
-}
-
-prepare_configs() {
-        check_docker_env
-        enable_docker_ipv6
-        sysctl_config
-        env_config
-        docker_compose_config
-        v2ray_config
-        haproxy_config
-        nginx_config
+    systemctl enable docker 2>&1
+    systemctl start docker 2>&1
 }
 
 enable_docker_ipv6() {
     if [ ! -f "/etc/docker/daemon.json" ] || [ ! -s "/etc/docker/daemon.json" ]; then
-        sudo mkdir -p /etc/docker
-        sudo tee /etc/docker/daemon.json > /dev/null <<EOF
+        mkdir -p /etc/docker
+        tee /etc/docker/daemon.json > /dev/null <<EOF
 {
     "experimental": true,
     "ip6tables": true
@@ -308,7 +332,7 @@ EOF
     else
         content=$(cat /etc/docker/daemon.json)
         if [[ ! $content =~ \{.*\} ]]; then
-            sudo tee /etc/docker/daemon.json > /dev/null <<EOF
+            tee /etc/docker/daemon.json > /dev/null <<EOF
 {
     "experimental": true,
     "ip6tables": true
@@ -316,12 +340,12 @@ EOF
 EOF
         else
             if ! grep -q "experimental" /etc/docker/daemon.json; then
-                sudo sed -i 's/^{/{\n    "experimental": true,/' /etc/docker/daemon.json
+                sed -i 's/^{/{\n    "experimental": true,/' /etc/docker/daemon.json
             fi
             if ! grep -q "ip6tables" /etc/docker/daemon.json; then
-                sudo sed -i 's/^{/{\n    "ip6tables": true,/' /etc/docker/daemon.json
+                sed -i 's/^{/{\n    "ip6tables": true,/' /etc/docker/daemon.json
             fi
-            sudo sed -i 's/,\s*}/\n}/' /etc/docker/daemon.json
+            sed -i 's/,\s*}/\n}/' /etc/docker/daemon.json
         fi
     fi
 }
@@ -330,7 +354,7 @@ sysctl_config() {
     if [[ "$SYSCTL_OPTIMIZE" == 0 ]]; then
         echo "优化网络设置 Updating sysctl config..."
         if ! grep -q "* soft nofile 51200" /etc/security/limits.conf; then
-            sudo tee -a /etc/security/limits.conf <<- EOF
+            tee -a /etc/security/limits.conf <<- EOF
 * soft nofile 51200
 * hard nofile 51200
 
@@ -339,8 +363,8 @@ root hard nofile 51200
 EOF
         fi
 
-        sudo mkdir -p /etc/sysctl.d/
-        sudo tee /etc/sysctl.d/50-network.conf <<- EOF
+        mkdir -p /etc/sysctl.d/
+        tee /etc/sysctl.d/50-network.conf <<- EOF
 fs.file-max = 51200
 
 net.core.rmem_max = 67108864
@@ -367,7 +391,7 @@ net.ipv4.tcp_congestion_control = hybla
 EOF
 
         ulimit -n 51200
-        sudo sysctl --system
+        sysctl --system
     fi
 }
 
@@ -471,6 +495,8 @@ EOF
     volumes:
       - ./config/openvpn/server:/etc/openvpn/server
       - ./config/openvpn/client:/root/client-configs
+    devices:
+      - /dev/net/tun:/dev/net/tun
     networks:
       - ipv6
     sysctls:
@@ -495,12 +521,13 @@ EOF
       - PUID=1000
       - PGID=1000
       - TZ=Asia/Shanghai
-      #- MASTER_URL= #optional
-      #- SHARED_SECRET=password #optional
-      #- CACHE_DIR=/tmp #optional
+      - MASTER_URL=${MASTER_URL}
+      - SHARED_SECRET=${SHARED_SECRET}
+    networks:
+      - ipv6
     volumes:
-      - ./config:/config
-      - ./data:/data
+      - ./config/smokeping:/config
+      - ./data/smokeping:/data
     restart: unless-stopped
 
 EOF
@@ -867,8 +894,25 @@ EOF
 
     if [[ "$DEPLOY_CHOICES" == *"4"* ]]; then
     cat <<- EOF >> ./config/nginx/site-confs/default.conf
-    location /smokeping {
+
+    location ~* ^/(css|js|cache)/ {
+        rewrite ^/(js|css|cache)/(.*)$ /smokeping/$1/$2 break;
         proxy_pass http://smokeping:80;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection "";
+    }
+
+    location /smokeping {
+        proxy_pass http://smokeping:80/smokeping/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        # proxy_http_version 1.1;
+        proxy_set_header Connection "";
     }
 EOF
     fi
@@ -894,207 +938,48 @@ EOF
 smokeping_config() {
     echo "写入 SmokePing 配置... Writing SmokePing config..."
     mkdir -p ./config/smokeping
-    cat <<- EOF > ./config/smokeping/Targets
-*** Targets ***
-
-probe = FPing
-
-menu = Top
-title = Network Latency Grapher
-remark = Welcome to the SmokePing website of WORKS Company. \
-         Here you will learn all about the latency of our network.
-
-+ InternetSites
-
-menu = Internet Sites
-title = Internet Sites
-
-++ BeijingUnicom
-menu = Beijing Unicom
-title = Beijing Unicom
-host = 202.106.50.1
-
-++ BeijingTelecom
-menu = Beijing Telecom
-title = Beijing Telecom
-host = 219.141.136.12
-
-++ BeijingMobile
-menu = Beijing Mobile
-title = Beijing Mobile
-host = 221.179.155.161
-
-++ X.com
-menu = X.com
-title = X.com
-host = x.com
-
-++ Youtube
-menu = YouTube
-title = YouTube
-host = youtube.com
-
-++ JupiterBroadcasting
-menu = JupiterBroadcasting
-title = JupiterBroadcasting
-host = jupiterbroadcasting.com
-
-++ GoogleSearch
-menu = Google
-title = google.com
-host = google.com
-
-++ GoogleSearchIpv6
-menu = Google
-probe = FPing6
-title = ipv6.google.com
-host = ipv6.google.com
-
-++ linuxserverio
-menu = linuxserver.io
-title = linuxserver.io
-host = linuxserver.io
-
-+ DNS
-menu = DNS
-title = DNS
-
-++ GoogleDNS1
-menu = Google DNS 1
-title = Google DNS 8.8.8.8
-host = 8.8.8.8
-
-++ GoogleDNS2
-menu = Google DNS 2
-title = Google DNS 8.8.4.4
-host = 8.8.4.4
-
-++ OpenDNS1
-menu = OpenDNS1
-title = OpenDNS1
-host = 208.67.222.222
-
-++ OpenDNS2
-menu = OpenDNS2
-title = OpenDNS2
-host = 208.67.220.220
-
-++ CloudflareDNS1
-menu = Cloudflare DNS 1
-title = Cloudflare DNS 1.1.1.1
-host = 1.1.1.1
-
-++ CloudflareDNS2
-menu = Cloudflare DNS 2
-title = Cloudflare DNS 1.0.0.1
-host = 1.0.0.1
-
-++ L3-1
-menu = Level3 DNS 1
-title = Level3 DNS 4.2.2.1
-host = 4.2.2.1
-
-++ L3-2
-menu = Level3 DNS 2
-title = Level3 DNS 4.2.2.2
-host = 4.2.2.2
-
-++ Quad9
-menu = Quad9
-title = Quad9 DNS 9.9.9.9
-host = 9.9.9.9
-
-+ DNSProbes
-menu = DNS Probes
-title = DNS Probes
-probe = DNS
-
-++ GoogleDNS1
-menu = Google DNS 1
-title = Google DNS 8.8.8.8
-host = 8.8.8.8
-
-++ GoogleDNS2
-menu = Google DNS 2
-title = Google DNS 8.8.4.4
-host = 8.8.4.4
-
-++ OpenDNS1
-menu = OpenDNS1
-title = OpenDNS1
-host = 208.67.222.222
-
-++ OpenDNS2
-menu = OpenDNS2
-title = OpenDNS2
-host = 208.67.220.220
-
-++ CloudflareDNS1
-menu = Cloudflare DNS 1
-title = Cloudflare DNS 1.1.1.1
-host = 1.1.1.1
-
-++ CloudflareDNS2
-menu = Cloudflare DNS 2
-title = Cloudflare DNS 1.0.0.1
-host = 1.0.0.1
-
-++ L3-1
-menu = Level3 DNS 1
-title = Level3 DNS 4.2.2.1
-host = 4.2.2.1
-
-++ L3-2
-menu = Level3 DNS 2
-title = Level3 DNS 4.2.2.2
-host = 4.2.2.2
-
-++ Quad9
-menu = Quad9
-title = Quad9 DNS 9.9.9.9
-host = 9.9.9.9
-EOF
+    curl -sLo ./config/smokeping/Targets https://raw.githubusercontent.com/PandaRyshan/ladder/refs/heads/main/config/smokeping/Targets
 }
 
 pull_images() {
     {
-        sudo docker compose pull 2>&1
+        docker compose pull 2>&1
     } | dialog --title "正在拉取镜像..." --programbox 20 70
 }
 
 up_containers() {
     {
-        sudo docker compose up -d 2>&1
+        docker compose up -d 2>&1
     } | dialog --title "正在部署容器..." --programbox 20 70
 }
 
 start_containers() {
     {
-        sudo docker compose start 2>&1
+        docker compose start 2>&1
     } | dialog --title "正在启动容器..." --programbox 20 70
 }
 
 upgrade_containers() {
     {
-        sudo docker compose pull 2>&1
+        docker compose pull 2>&1
     } | dialog --title "正在更新容器..." --programbox 20 70
 }
 
 stop_containers() {
     {
-        sudo docker compose stop 2>&1
+        docker compose stop 2>&1
     } | dialog --title "正在停止容器..." --programbox 20 70
 }
 
 restart_containers() {
     {
-        sudo docker compose restart 2>&1
+        docker compose restart 2>&1
     } | dialog --title "正在重启容器..." --programbox 20 70
 }
 
 down_containers() {
     {
-        sudo docker compose down 2>&1
+        docker compose down 2>&1
     } | dialog --title "正在卸载容器..." --programbox 20 70
 }
 
