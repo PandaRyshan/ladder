@@ -86,7 +86,7 @@ input_config_menu() {
         dialog_args=(
             --title "V2Ray 配置" \
             --extra-button --extra-label "Previous" \
-            --mixedform "请输入 V2Ray 配置信息：" 15 50 5 \
+            --mixedform "请输入 V2Ray 配置信息：" 15 60 5 \
             "时区：" 1 1 "$TIMEZONE" 1 13 30 30 0 \
             "域名：" 2 1 "$DOMAIN" 2 13 30 30 0
         )
@@ -102,7 +102,7 @@ input_config_menu() {
             dialog_args+=(
                 \
                 "Master URL：" 4 1 "$MASTER_URL" 4 13 30 30 0 \
-                "Secret：" 4 1 "$SHARED_SECRET" 4 13 30 30 0
+                "Secret：" 5 1 "$SHARED_SECRET" 5 13 30 30 0
             )
         fi
 
