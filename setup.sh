@@ -493,9 +493,7 @@ EOF
     environment:
       - DOMAIN=${DOMAIN}
     volumes:
-      - ./config/openvpn/server:/etc/openvpn/server
-      - ./config/openvpn/client:/root/client-configs
-      - ./config/openvpn/certs:/usr/share/easy-rsa
+      - ./config/openvpn:/etc/openvpn
     devices:
       - /dev/net/tun:/dev/net/tun
     networks:
@@ -897,21 +895,21 @@ EOF
     cat <<- EOF >> ./config/nginx/site-confs/default.conf
 
     location ~* ^/(css|js|cache)/ {
-        rewrite ^/(js|css|cache)/(.*)$ /smokeping/$1/$2 break;
+        rewrite ^/(js|css|cache)/(.*)$ /smokeping/\$1/\$2 break;
         proxy_pass http://smokeping:80;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
         proxy_set_header Connection "";
     }
 
     location /smokeping {
         proxy_pass http://smokeping:80/smokeping/;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
         # proxy_http_version 1.1;
         proxy_set_header Connection "";
     }
