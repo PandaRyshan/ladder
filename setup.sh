@@ -87,22 +87,22 @@ input_config_menu() {
             --title "V2Ray 配置" \
             --extra-button --extra-label "Previous" \
             --mixedform "请输入 V2Ray 配置信息：" 15 60 5 \
-            "时区：" 1 1 "$TIMEZONE" 1 13 30 30 0 \
-            "域名：" 2 1 "$DOMAIN" 2 13 30 30 0
+            "时区：" 1 1 "$TIMEZONE" 1 13 40 40 0 \
+            "域名：" 2 1 "$DOMAIN" 2 13 40 40 0
         )
 
         # 判断 DEPLOY_CHOICES 中是否包含 Warp 选项，如存在则添加 Warp Key 输入框
         if [[ $DEPLOY_CHOICES == *"2"* ]]; then
             dialog_args+=(
                 \
-                "Warp Key：" 3 1 "$WARP_KEY" 3 13 30 30 0 )
+                "Warp Key：" 3 1 "$WARP_KEY" 3 13 40 40 0 )
         fi
 
         if [[ $DEPLOY_CHOICES == *"4"* ]]; then
             dialog_args+=(
                 \
-                "Master URL：" 4 1 "$MASTER_URL" 4 13 30 30 0 \
-                "Secret：" 5 1 "$SHARED_SECRET" 5 13 30 30 0
+                "Master URL：" 4 1 "$MASTER_URL" 4 13 40 40 0 \
+                "Secret：" 5 1 "$SHARED_SECRET" 5 13 40 40 0
             )
         fi
 
