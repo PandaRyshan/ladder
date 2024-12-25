@@ -495,6 +495,7 @@ EOF
     volumes:
       - ./config/openvpn/server:/etc/openvpn/server
       - ./config/openvpn/client:/root/client-configs
+      - ./config/openvpn/easy-rsa:/root/easy-rsa
     devices:
       - /dev/net/tun:/dev/net/tun
     networks:
