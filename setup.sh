@@ -1,5 +1,7 @@
 #!/bin/bash
 
+trap 'clear; exit' SIGINT
+
 # 检查是否以 root 身份运行或以 sudo 权限运行
 if [ "$EUID" -ne 0 ] && [ -z "$SUDO_USER" ]; then
   echo "请以 root 身份或使用 sudo 运行此脚本"
@@ -9,8 +11,13 @@ fi
 PREVIOUS_MENU=1
 MAIN_MENU=1
 DEPLOY_MENU=2
-INPUT_CONFIG_MENU=3
+ENV_CONFIG_MENU=3
 SYSCTL_MENU=4
+
+V2RAY=1
+WARP=2
+OPENVPN=3
+SMOKEPING=4
 
 main_menu() {
     items=(
@@ -36,7 +43,7 @@ main_menu() {
             1) status_menu ;;
             2)
                 deploy_menu
-                input_config_menu
+                env_config_menu
                 sysctl_menu
                 deploy
                 break
@@ -77,34 +84,19 @@ deploy_menu() {
     done
 }
 
-input_config_menu() {
+env_config_menu() {
     PREVIOUS_MENU=2
     TIMEZONE=${1:-"Asia/Shanghai"}
     DOMAIN=${2:-""}
-    WARP_KEY=${3:-""}
+
     while true; do
         dialog_args=(
             --title "V2Ray 配置" \
             --extra-button --extra-label "Previous" \
-            --mixedform "请输入 V2Ray 配置信息：" 15 60 5 \
-            "时区：" 1 1 "$TIMEZONE" 1 13 40 40 0 \
-            "域名：" 2 1 "$DOMAIN" 2 13 40 40 0
+            --mixedform "请输入环境配置信息：" 15 60 5 \
+            "Timezone:" 1 1 "$TIMEZONE" 1 13 40 40 0 \
+            "Domain:" 2 1 "$DOMAIN" 2 13 40 40 0
         )
-
-        # 判断 DEPLOY_CHOICES 中是否包含 Warp 选项，如存在则添加 Warp Key 输入框
-        if [[ $DEPLOY_CHOICES == *"2"* ]]; then
-            dialog_args+=(
-                \
-                "Warp Key：" 3 1 "$WARP_KEY" 3 13 40 40 0 )
-        fi
-
-        if [[ $DEPLOY_CHOICES == *"4"* ]]; then
-            dialog_args+=(
-                \
-                "Master URL：" 4 1 "$MASTER_URL" 4 13 40 40 0 \
-                "Secret：" 5 1 "$SHARED_SECRET" 5 13 40 40 0
-            )
-        fi
 
         result=$(dialog "${dialog_args[@]}" 3>&1 1>&2 2>&3)
 
@@ -116,8 +108,6 @@ input_config_menu() {
 
         TIMEZONE=$(sed -n '1p' <<< $result)
         DOMAIN=$(sed -n '2p' <<< $result)
-        WARP_KEY=$(sed -n '3p' <<< $result)
-        MASTER_URL=$(sed -n '4p' <<< $result)
 
         if [ -z "$TIMEZONE" ] || [ -z "$DOMAIN" ]; then
             dialog --msgbox "所有信息均为必填，请继续输入。" 7 50
@@ -125,6 +115,29 @@ input_config_menu() {
             break
         fi
     done
+}
+
+warp_config_menu() {
+    WARP_KEY=${1:-""}
+    if [[ $DEPLOY_CHOICES == *"$WARP"* ]]; then
+        dialog_args=("Warp Key:" 1 1 "$WARP_KEY" 1 13 40 40 0 )
+        result=$(dialog "${dialog_args[@]}" 3>&1 1>&2 2>&3)
+    fi
+    WARP_KEY=$(sed -n '3p' <<< $result)
+}
+
+smokeping_config_menu() {
+    MASTER_URL=${1:-""}
+    SHARED_SECRET=${1:-""}
+    if [[ $DEPLOY_CHOICES == *"$SMOKEPING"* ]]; then
+        dialog_args+=(
+            \
+            "Master URL:" 1 1 "$MASTER_URL" 1 15 40 40 0 \
+            "Shared Secret:" 2 1 "$SHARED_SECRET" 2 15 40 40 0
+        )
+    fi
+    MASTER_URL=$(sed -n '4p' <<< $result)
+    SHARED_SECRET=$(sed -n '5p' <<< $result)
 }
 
 sysctl_menu() {
@@ -150,7 +163,7 @@ back_previous_menu() {
     case $PREVIOUS_MENU in
         1) main_menu ;;
         2) deploy_menu ;;
-        3) input_config_menu $TIMEZONE $DOMAIN $WARP_KEY ;;
+        3) env_config_menu $TIMEZONE $DOMAIN $WARP_KEY ;;
         4) sysctl_menu ;;
     esac
 }
@@ -184,7 +197,7 @@ deploy() {
 }
 
 prepare_configs() {
-        if [[ "$DEPLOY_CHOICES" == *"3"* ]]; then
+        if [[ "$DEPLOY_CHOICES" == *"$OPENVPN"* ]]; then
             check_tun_device
         fi
         check_docker_env
@@ -404,7 +417,7 @@ EOF
 }
 
 docker_compose_config() {
-    if [[ "$DEPLOY_CHOICES" == *"1"* ]]; then
+    if [[ "$DEPLOY_CHOICES" == *"$V2RAY"* ]]; then
         echo "下载 geodata. Downloading geodata..."
         mkdir -p ./config/geodata
         curl -sLo ./config/geodata/geoip.dat https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat
@@ -451,7 +464,7 @@ services:
 
 EOF
 
-    if [[ "$DEPLOY_CHOICES" == *"1"* ]]; then
+    if [[ "$DEPLOY_CHOICES" == *"$V2RAY"* ]]; then
         cat <<- EOF >> docker-compose.yaml
   v2ray:
     image: pandasrun/v2ray:latest
@@ -469,7 +482,7 @@ EOF
 EOF
     fi
 
-    if [[ "$DEPLOY_CHOICES" == *"2"* ]]; then
+    if [[ "$DEPLOY_CHOICES" == *"$WARP"* ]]; then
         cat <<- EOF >> docker-compose.yaml
   warp:
     image: pandasrun/warp:latest
@@ -485,7 +498,7 @@ EOF
 EOF
     fi
 
-    if [[ "$DEPLOY_CHOICES" == *"3"* ]]; then
+    if [[ "$DEPLOY_CHOICES" == *"$OPENVPN"* ]]; then
         cat <<- EOF >> docker-compose.yaml
   openvpn:
     image: pandasrun/openvpn:latest
@@ -510,7 +523,7 @@ EOF
 EOF
     fi
 
-    if [[ "$DEPLOY_CHOICES" == *"4"* ]]; then
+    if [[ "$DEPLOY_CHOICES" == *"$SMOKEPING"* ]]; then
         smokeping_config
         cat <<- EOF >> docker-compose.yaml
   smokeping:
@@ -565,10 +578,10 @@ v2ray_config() {
             "geosite:category-ads-all": "127.0.0.1"
         },
         "servers": [
-            "1.1.1.1",
             "8.8.8.8",
-            "https+local://cloudflare-dns.com/dns-query",
-            "https+local://dns.google/dns-query"
+            "1.1.1.1",
+            "https+local://dns.google/dns-query",
+            "https+local://cloudflare-dns.com/dns-query"
         ],
         "clientIp": "${PUBLIC_IP}"
     },
@@ -675,6 +688,10 @@ v2ray_config() {
             "tag": "freedom",
             "protocol": "freedom"
         },
+EOF
+
+    if [[ "$DEPLOY_CHOICES" == *"$WARP"* ]]; then
+    cat <<- EOF >> ./config/v2ray/config.json
         {
             "tag": "cf-warp",
             "protocol": "socks",
@@ -687,6 +704,10 @@ v2ray_config() {
                 ]
             }
         },
+EOF
+    fi
+
+    cat <<- EOF >> ./config/v2ray/config.json
         {
             "tag": "blocked",
             "protocol": "blackhole"
@@ -710,6 +731,10 @@ v2ray_config() {
                 ],
                 "outboundTag": "dns-out"
             },
+EOF
+
+    if [[ "$DEPLOY_CHOICES" == *"$WARP"* ]]; then
+    cat <<- EOF >> ./config/v2ray/config.json
             {
                 "outboundTag": "cf-warp",
                 "type": "field",
@@ -717,6 +742,10 @@ v2ray_config() {
                     "geosite:openai"
                 ]
             },
+EOF
+    fi
+
+    cat <<- EOF >> ./config/v2ray/config.json
             {
                 "outboundTag": "blocked",
                 "type": "field",
@@ -794,13 +823,13 @@ frontend tls-in
 
 EOF
 
-    if [[ "$DEPLOY_CHOICES" == *"1"* ]]; then
+    if [[ "$DEPLOY_CHOICES" == *"$V2RAY"* ]]; then
         cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
     use_backend v2ray_tcp if !is_h1 !is_h2 has_sni
 EOF
     fi
 
-    if [[ "$DEPLOY_CHOICES" == *"3"* ]]; then
+    if [[ "$DEPLOY_CHOICES" == *"$OPENVPN"* ]]; then
         cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
     use_backend openvpn if !is_h1 !is_h2 !has_sni
 EOF
@@ -814,7 +843,7 @@ backend nginx
 
 EOF
 
-    if [[ "$DEPLOY_CHOICES" == *"1"* ]]; then
+    if [[ "$DEPLOY_CHOICES" == *"$V2RAY"* ]]; then
         cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
 backend v2ray_tcp
     server v2ray v2ray:8001
@@ -822,7 +851,7 @@ backend v2ray_tcp
 EOF
     fi
 
-    if [[ "$DEPLOY_CHOICES" == *"3"* ]]; then
+    if [[ "$DEPLOY_CHOICES" == *"$OPENVPN"* ]]; then
         cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
 backend openvpn
     server openvpn openvpn:443
@@ -891,7 +920,7 @@ server {
     }
 EOF
 
-    if [[ "$DEPLOY_CHOICES" == *"4"* ]]; then
+    if [[ "$DEPLOY_CHOICES" == *"$SMOKEPING"* ]]; then
     cat <<- EOF >> ./config/nginx/site-confs/default.conf
 
     location ~* ^/(css|js|cache)/ {
@@ -1013,3 +1042,5 @@ output_v2ray_config() {
 check_os_release
 install_missing_packages
 main_menu
+clear
+cat $(pwd)/info.txt
