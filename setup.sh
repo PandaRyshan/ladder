@@ -582,6 +582,7 @@ EOF
       - TZ=Asia/Shanghai
       - MASTER_URL=${MASTER_URL}
       - SHARED_SECRET=${SHARED_SECRET}
+    hostname: ${HOST_NAME}
     networks:
       - ipv6
     volumes:
