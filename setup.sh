@@ -10,7 +10,7 @@ fi
 
 MAIN_MENU=1
 DEPLOY_MENU=2
-ENV_CONFIG_MENU=3
+V2RAY_CONFIG_MENU=3
 WARP_CONFIG_MENU=4
 SMOKEPING_CONFIG_MENU=5
 SYSCTL_MENU=6
@@ -80,7 +80,7 @@ deploy_menu() {
         else
             for choice in $DEPLOY_CHOICES; do
                 case $choice in
-                    $V2RAY) MENU_HISTORY+=($ENV_CONFIG_MENU) ;;
+                    $V2RAY) MENU_HISTORY+=($V2RAY_CONFIG_MENU) ;;
                     $WARP) MENU_HISTORY+=($WARP_CONFIG_MENU) ;;
                     $SMOKEPING) MENU_HISTORY+=($SMOKEPING_CONFIG_MENU) ;;
                 esac
@@ -92,7 +92,7 @@ deploy_menu() {
     next_menu
 }
 
-env_config_menu() {
+v2ray_config_menu() {
     TIMEZONE=${1:-"Asia/Shanghai"}
     DOMAIN=${2:-""}
 
@@ -116,6 +116,30 @@ env_config_menu() {
         if [ -z "$TIMEZONE" ] || [ -z "$DOMAIN" ]; then
             dialog --msgbox "所有信息均为必填，请继续输入。" 7 50
         else
+            break
+        fi
+    done
+    while true; do
+        dialog --yesno "是否启用 socks5?" 7 50
+        if [ $? -eq 0 ]; then
+            ENABLE_SOCKS5="true"
+            dialog_args=(
+                --title "SOCKS5 配置" \
+                --extra-button --extra-label "Previous" \
+                --mixedform "请输入 SOCKS5 认证信息：" 15 60 5 \
+                "User:" 1 1 "" 1 13 40 40 0 \
+                "Password:" 2 1 "" 2 13 40 40 0
+            )
+            result=$(dialog "${dialog_args[@]}" 3>&1 1>&2 2>&3)
+            SOCKS5_USER=$(sed -n '1p' <<< $result)
+            SOCKS5_PASS=$(sed -n '2p' <<< $result)
+            if [ -z "$SOCKS5_USER" ] || [ -z "$SOCKS5_PASS" ]; then
+                dialog --msgbox "必须输入认证信息以启用Socks5" 7 50
+            else
+                break
+            fi
+        else
+            ENABLE_SOCKS5="false"
             break
         fi
     done
@@ -190,7 +214,7 @@ previous_menu() {
     case $PREVIOUS_MENU in
         1) main_menu ;;
         2) deploy_menu ;;
-        3) env_config_menu $TIMEZONE $DOMAIN ;;
+        3) v2ray_config_menu $TIMEZONE $DOMAIN ;;
         4) warp_config_menu $WARP_KEY ;;
         5) smokeping_config_menu $MASTER_URL $SHARED_SECRET ;;
         6) sysctl_menu ;;
@@ -204,7 +228,7 @@ next_menu() {
     case $NEXT_MENU in
         1) main_menu ;;
         2) deploy_menu ;;
-        3) env_config_menu $TIMEZONE $DOMAIN ;;
+        3) v2ray_config_menu $TIMEZONE $DOMAIN ;;
         4) warp_config_menu $WARP_KEY ;;
         5) smokeping_config_menu $MASTER_URL $SHARED_SECRET ;;
         6) sysctl_menu ;;
@@ -457,9 +481,19 @@ EOF
 
 env_config() {
     cat <<- EOF > .env
-TZ=${TIMEZONE}
+TIMEZONE=${TIMEZONE}
 DOMAIN=${DOMAIN}
+
+# warp plus key
 WARP_KEY=${WARP_KEY}
+
+# smokeping config
+HOST_NAME=${HOST_NAME}
+MASTER_URL=${MASTER_URL}
+SHARED_SECRET=${SHARED_SECRET}
+
+# for notification
+EMAIL=${EMAIL}
 EOF
 }
 
@@ -480,7 +514,7 @@ services:
     container_name: haproxy_tcp
     volumes:
       - ./config/haproxy/haproxy.tcp.cfg:/usr/local/etc/haproxy/haproxy.cfg
-      - ./config/certs/live/${DOMAIN}:/etc/ssl/certs
+      - ./config/certs/live/\${DOMAIN}:/etc/ssl/certs
     networks:
       - ipv6
     ports:
@@ -495,10 +529,12 @@ services:
     environment:
       - PUID=99
       - PGID=99
-      - TZ=${TIMEZONE}
-      - URL=${DOMAIN}
+      - TZ=\${TIMEZONE}
+      - URL=\${DOMAIN} # can fill a subdomain.example.com
+      # - SUBDOMAINS=www,vpn  # optional, comma separated
+      # - ONLY_SUBDOMAINS=true  # optional
       - VALIDATION=http
-      - EMAIL=${EMAIL}
+      - EMAIL=\${EMAIL}
     volumes:
       - ./config/nginx:/config/nginx
       - ./config/certs:/config/etc/letsencrypt
@@ -521,7 +557,7 @@ EOF
     volumes:
       - ./config/v2ray/config.json:/etc/v2ray/config.json
       - ./config/geodata:/usr/share/v2ray
-      - ./config/certs/live/${DOMAIN}:/etc/ssl/certs/v2ray
+      - ./config/certs/live/\${DOMAIN}:/etc/ssl/certs/v2ray
     networks:
       - ipv6
     restart: unless-stopped
@@ -535,7 +571,7 @@ EOF
     image: ghcr.io/pandaryshan/warp:latest
     container_name: warp
     environment:
-      - WARP_KEY=${WARP_KEY}
+      - WARP_KEY=\${WARP_KEY}
     volumes:
       - ./config/warp:/var/lib/cloudflare-warp
     networks:
@@ -551,7 +587,7 @@ EOF
     image: ghcr.io/pandaryshan/openvpn:latest
     container_name: openvpn
     environment:
-      - DOMAIN=${DOMAIN}
+      - DOMAIN=\${DOMAIN}
     volumes:
       - ./config/openvpn:/etc/openvpn
     devices:
@@ -580,9 +616,9 @@ EOF
       - PUID=1000
       - PGID=1000
       - TZ=Asia/Shanghai
-      - MASTER_URL=${MASTER_URL}
-      - SHARED_SECRET=${SHARED_SECRET}
-    hostname: ${HOST_NAME}
+      - MASTER_URL=\${MASTER_URL}
+      - SHARED_SECRET=\${SHARED_SECRET}
+    hostname: \${HOST_NAME}
     networks:
       - ipv6
     volumes:
@@ -741,7 +777,7 @@ v2ray_config() {
 EOF
 
     if [[ "$DEPLOY_CHOICES" == *"$WARP"* ]]; then
-    cat <<- EOF >> ./config/v2ray/config.json
+        cat <<- EOF >> ./config/v2ray/config.json
         {
             "tag": "cf-warp",
             "protocol": "socks",
@@ -750,6 +786,27 @@ EOF
                     {
                         "address": "warp",
                         "port": 40001
+                    }
+                ]
+            }
+        },
+EOF
+    fi
+
+    if [[ "$ENABLE_SOCKS5" == "true" ]]; then
+        cat <<- EOF >> ./config/v2ray/config.json
+        {
+            "tag": "socks",
+            "protocol": "socks",
+            "listen": "0.0.0.0",
+            "port": 8005,
+            "settings": {
+                "address": "127.0.0.1",
+                "auth": "password",
+                "accounts": [
+                    {
+                        "user": "${SOCKS5_USER}",
+                        "pass": "${SOCKS5_PASS}"
                     }
                 ]
             }
@@ -865,8 +922,10 @@ frontend tls-in
 
     tcp-request inspect-delay 5s
     tcp-request content accept if { req_ssl_hello_type 1 }
+    tcp-request content accept if { req.payload(0,1) -m bin 05 }
     tcp-request content accept if HTTP
 
+    acl is_socks req.payload(0,1) -m bin 05
     acl is_h2 req.ssl_alpn -i h2
     acl is_h1 req.ssl_alpn -i http/1.1
     acl has_sni req.ssl_sni -m found
@@ -1078,7 +1137,7 @@ output_v2ray_config() {
         echo "V2Ray 配置："
         printf "+--------------+-%-${max_len}s-+\n" | sed "s/ /-/g"
         printf "| %-12s | %-${max_len}s |\n" "Domain:" "${DOMAIN}"
-        printf "| %-12s | %-${max_len}s |\n" "Protocol:" "grpc"
+        printf "| %-12s | %-${max_len}s |\n" "Protocol:" "tcp / grpc / quic / socks"
         printf "| %-12s | %-${max_len}s |\n" "UUID:" "${UUID}"
         printf "| %-12s | %-${max_len}s |\n" "ServiceName:" "${SERVICE_NAME}"
         printf "| %-12s | %-${max_len}s |\n" "TLS:" "Yes"
