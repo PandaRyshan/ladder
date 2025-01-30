@@ -8,11 +8,12 @@ if [ "$EUID" -ne 0 ] && [ -z "$SUDO_USER" ]; then
   exit 1
 fi
 
-PREVIOUS_MENU=1
 MAIN_MENU=1
 DEPLOY_MENU=2
 ENV_CONFIG_MENU=3
-SYSCTL_MENU=4
+WARP_CONFIG_MENU=4
+SMOKEPING_CONFIG_MENU=5
+SYSCTL_MENU=6
 
 V2RAY=1
 WARP=2
@@ -20,6 +21,8 @@ OPENVPN=3
 SMOKEPING=4
 
 main_menu() {
+    MENU_HISTORY=($MAIN_MENU)
+    CURRENT_INDEX=0
     items=(
         1 "状态 Status" on
         2 "部署 Deploy" off
@@ -41,13 +44,7 @@ main_menu() {
 
         case $choice in
             1) status_menu ;;
-            2)
-                deploy_menu
-                env_config_menu
-                sysctl_menu
-                deploy
-                break
-                ;;
+            2) deploy_menu;;
             3) restart_containers ;;
             4) upgrade_containers ;;
             5) stop_containers ;;
@@ -62,15 +59,17 @@ status_menu() {
 }
 
 deploy_menu() {
+    MENU_HISTORY=($MAIN_MENU $DEPLOY_MENU)
+    CURRENT_INDEX=1
     while true; do
         DEPLOY_CHOICES=$(dialog --clear \
             --title "选择要部署的组件" \
             --extra-button --extra-label "Previous" \
             --checklist "请选择至少一个选项：" 15 50 5 \
-            1 "V2Ray" on \
-            2 "Warp" off \
-            3 "OpenVPN" off \
-            4 "SmokePing" off \
+            $V2RAY "V2Ray" on \
+            $WARP "Warp" off \
+            $OPENVPN "OpenVPN" off \
+            $SMOKEPING "SmokePing" off \
             3>&1 1>&2 2>&3)
 
         exit_status=$?
@@ -79,19 +78,27 @@ deploy_menu() {
         if [ -z "$DEPLOY_CHOICES" ]; then
             dialog --msgbox "请至少选择一项" 7 50
         else
+            for choice in $DEPLOY_CHOICES; do
+                case $choice in
+                    $V2RAY) MENU_HISTORY+=($ENV_CONFIG_MENU) ;;
+                    $WARP) MENU_HISTORY+=($WARP_CONFIG_MENU) ;;
+                    $SMOKEPING) MENU_HISTORY+=($SMOKEPING_CONFIG_MENU) ;;
+                esac
+            done
+            MENU_HISTORY+=($SYSCTL_MENU)
             break
         fi
     done
+    next_menu
 }
 
 env_config_menu() {
-    PREVIOUS_MENU=2
     TIMEZONE=${1:-"Asia/Shanghai"}
     DOMAIN=${2:-""}
 
     while true; do
         dialog_args=(
-            --title "V2Ray 配置" \
+            --title "环境配置" \
             --extra-button --extra-label "Previous" \
             --mixedform "请输入环境配置信息：" 15 60 5 \
             "Timezone:" 1 1 "$TIMEZONE" 1 13 40 40 0 \
@@ -102,9 +109,6 @@ env_config_menu() {
 
         exit_status=$?
         exit_operation $exit_status
-        # if exit_operation $exit_status; then
-        #     break
-        # fi
 
         TIMEZONE=$(sed -n '1p' <<< $result)
         DOMAIN=$(sed -n '2p' <<< $result)
@@ -115,38 +119,54 @@ env_config_menu() {
             break
         fi
     done
+    next_menu
 }
 
 warp_config_menu() {
     WARP_KEY=${1:-""}
     if [[ $DEPLOY_CHOICES == *"$WARP"* ]]; then
-        dialog_args=("Warp Key:" 1 1 "$WARP_KEY" 1 13 40 40 0 )
+        dialog_args=(
+            --title "Warp 配置" \
+            --extra-button --extra-label "Previous" \
+            --mixedform "请输入环境配置信息：" 15 60 5 \
+            "Warp Key:" 1 1 "$WARP_KEY" 1 13 40 40 0
+        )
         result=$(dialog "${dialog_args[@]}" 3>&1 1>&2 2>&3)
+        exit_status=$?
+        exit_operation $exit_status
     fi
-    WARP_KEY=$(sed -n '3p' <<< $result)
+    WARP_KEY=$(sed -n '1p' <<< $result)
+    next_menu
 }
 
 smokeping_config_menu() {
     MASTER_URL=${1:-""}
     SHARED_SECRET=${1:-""}
     if [[ $DEPLOY_CHOICES == *"$SMOKEPING"* ]]; then
-        dialog_args+=(
-            \
-            "Master URL:" 1 1 "$MASTER_URL" 1 15 40 40 0 \
-            "Shared Secret:" 2 1 "$SHARED_SECRET" 2 15 40 40 0
+        dialog_args=(
+            --title "Warp 配置" \
+            --extra-button --extra-label "Previous" \
+            --mixedform "请输入环境配置信息：" 15 60 5 \
+            "Host Name:" 1 1 "$HOST_NAME" 1 15 40 40 0 \
+            "Master URL:" 2 1 "$MASTER_URL" 2 15 40 40 0 \
+            "Shared Secret:" 3 1 "$SHARED_SECRET" 3 15 40 40 0
         )
+        result=$(dialog "${dialog_args[@]}" 3>&1 1>&2 2>&3)
+        exit_status=$?
+        exit_operation $exit_status
     fi
-    MASTER_URL=$(sed -n '4p' <<< $result)
-    SHARED_SECRET=$(sed -n '5p' <<< $result)
+    HOST_NAME=$(sed -n '1p' <<< $result)
+    MASTER_URL=$(sed -n '2p' <<< $result)
+    SHARED_SECRET=$(sed -n '3p' <<< $result)
+    next_menu
 }
 
 sysctl_menu() {
-    PREVIOUS_MENU=3
     while true; do
         dialog --clear \
             --title "优化 sysctl.conf" \
             --extra-button --extra-label "Previous" \
-            --yesno "是否优化 sysctl.conf？" 7 50
+            --yesno "是否优化 sysctl.conf?" 7 50
 
         exit_status=$?
         exit_operation $exit_status
@@ -154,17 +174,40 @@ sysctl_menu() {
         dialog --yesno "确认开始部署？" 7 50
         if [ $? -eq 0 ]; then
             SYSCTL_OPTIMIZE=$exit_status
+            deploy
             break
         fi
     done
 }
 
-back_previous_menu() {
+previous_menu() {
+    if [ ${#MENU_HISTORY[@]} -gt 1 ]; then
+        CURRENT_INDEX=$(($CURRENT_INDEX - 1))
+        PREVIOUS_MENU=${MENU_HISTORY[$CURRENT_INDEX]}
+    else
+        PREVIOUS_MENU=$MAIN_MENU
+    fi
     case $PREVIOUS_MENU in
         1) main_menu ;;
         2) deploy_menu ;;
-        3) env_config_menu $TIMEZONE $DOMAIN $WARP_KEY ;;
-        4) sysctl_menu ;;
+        3) env_config_menu $TIMEZONE $DOMAIN ;;
+        4) warp_config_menu $WARP_KEY ;;
+        5) smokeping_config_menu $MASTER_URL $SHARED_SECRET ;;
+        6) sysctl_menu ;;
+    esac
+}
+
+next_menu() {
+    CURRENT_INDEX=$(($CURRENT_INDEX + 1))
+    NEXT_MENU=${MENU_HISTORY[$CURRENT_INDEX]}
+    # dialog --msgbox "CURRENT_INDEX: $CURRENT_INDEX\nNEXT_MENU: $NEXT_MENU" 7 50
+    case $NEXT_MENU in
+        1) main_menu ;;
+        2) deploy_menu ;;
+        3) env_config_menu $TIMEZONE $DOMAIN ;;
+        4) warp_config_menu $WARP_KEY ;;
+        5) smokeping_config_menu $MASTER_URL $SHARED_SECRET ;;
+        6) sysctl_menu ;;
     esac
 }
 
@@ -172,13 +215,14 @@ exit_operation() {
     exit_status=$1
     case $exit_status in
         # Cancel
-        1) exit 0 ;;
+        1) clear; exit 0 ;;
         # Previous
-        3) back_previous_menu; return ;;
+        3) previous_menu; return ;;
         # ESC
         255)
             dialog --yesno "是否要退出？" 7 50
             if [ $? -eq 0 ]; then
+                clear
                 exit 0
             else
                 break
@@ -380,27 +424,30 @@ EOF
         tee /etc/sysctl.d/50-network.conf <<- EOF
 fs.file-max = 51200
 
-net.core.rmem_max = 67108864
-net.core.wmem_max = 67108864
-net.core.netdev_max_backlog = 250000
-net.core.somaxconn = 4096
-
+net.ipv4_timestamps = 1
+net.ipv4.tcp_sack = 1
+net.ipv4.tcp_window_scaling = 1
+net.ipv4.tcp_mtu_probing = 2
 net.ipv4.tcp_syncookies = 1
 net.ipv4.tcp_tw_reuse = 1
+net.ipv4.tcp_fastopen = 3
+net.ipv4.tcp_retries2 = 3
 net.ipv4.tcp_fin_timeout = 30
 net.ipv4.tcp_keepalive_time = 1200
 net.ipv4.ip_local_port_range = 10000 65000
-net.ipv4.tcp_max_syn_backlog = 8192
 net.ipv4.tcp_max_tw_buckets = 5000
-net.ipv4.tcp_fastopen = 3
-net.ipv4.tcp_mem = 25600 51200 102400
-net.ipv4.tcp_rmem = 4096 87380 67108864
-net.ipv4.tcp_wmem = 4096 65536 67108864
-net.ipv4.tcp_mtu_probing = 1
+net.core.netdev_max_backlog = 500000
+net.core.somaxconn = 4096
+net.ipv4.tcp_max_syn_backlog = 8192
+
+net.core.rmem_max = 67108864
+net.core.wmem_max = 67108864
+net.ipv4.tcp_mem = 65536 131072 262144
+net.ipv4.tcp_rmem = 4096 262144 134217728
+net.ipv4.tcp_wmem = 4096 262144 134217728
 
 net.core.default_qdisc = fq
-# net.ipv4.tcp_congestion_control = bbr
-net.ipv4.tcp_congestion_control = hybla
+net.ipv4.tcp_congestion_control = bbr
 EOF
 
         ulimit -n 51200
@@ -429,7 +476,7 @@ docker_compose_config() {
 services:
 
   haproxy_tcp:
-    image: pandasrun/haproxy:latest
+    image: ghcr.io/pandaryshan/haproxy:latest
     container_name: haproxy_tcp
     volumes:
       - ./config/haproxy/haproxy.tcp.cfg:/usr/local/etc/haproxy/haproxy.cfg
@@ -467,7 +514,7 @@ EOF
     if [[ "$DEPLOY_CHOICES" == *"$V2RAY"* ]]; then
         cat <<- EOF >> docker-compose.yaml
   v2ray:
-    image: pandasrun/v2ray:latest
+    image: ghcr.io/pandaryshan/v2ray:latest
     container_name: v2ray
     environment:
       - WAIT_PATHS=/etc/ssl/certs/v2ray/priv-fullchain-bundle.pem
@@ -485,7 +532,7 @@ EOF
     if [[ "$DEPLOY_CHOICES" == *"$WARP"* ]]; then
         cat <<- EOF >> docker-compose.yaml
   warp:
-    image: pandasrun/warp:latest
+    image: ghcr.io/pandaryshan/warp:latest
     container_name: warp
     environment:
       - WARP_KEY=${WARP_KEY}
@@ -501,7 +548,7 @@ EOF
     if [[ "$DEPLOY_CHOICES" == *"$OPENVPN"* ]]; then
         cat <<- EOF >> docker-compose.yaml
   openvpn:
-    image: pandasrun/openvpn:latest
+    image: ghcr.io/pandaryshan/openvpn:latest
     container_name: openvpn
     environment:
       - DOMAIN=${DOMAIN}
@@ -682,11 +729,13 @@ v2ray_config() {
         }
     ],
     "outbounds": [
-        // first one is the default option
-        // could be omitted in "routing" block below
         {
             "tag": "freedom",
             "protocol": "freedom"
+        },
+        {
+            "tag": "blocked",
+            "protocol": "blackhole"
         },
 EOF
 
@@ -709,10 +758,6 @@ EOF
 
     cat <<- EOF >> ./config/v2ray/config.json
         {
-            "tag": "blocked",
-            "protocol": "blackhole"
-        },
-        {
             "tag": "dns-out",
             "protocol": "dns",
             "proxySettings": {
@@ -726,39 +771,43 @@ EOF
         "rules": [
             {
                 "type": "field",
-                "inboundTag": [
-                    "dns-in"
-                ],
+                "inboundTag": ["dns-in"],
                 "outboundTag": "dns-out"
+            },
+            {
+                "type": "field",
+                "domain": [
+                    "geosite:category-ads-all"
+                ],
+                "outboundTag": "blocked"
+            },
+            {
+                "type": "field",
+                "protocol": [
+                    "bittorrent"
+                ],
+                "outboundTag": "blocked"
             },
 EOF
 
     if [[ "$DEPLOY_CHOICES" == *"$WARP"* ]]; then
     cat <<- EOF >> ./config/v2ray/config.json
             {
-                "outboundTag": "cf-warp",
                 "type": "field",
                 "domain": [
-                    "geosite:openai"
-                ]
+                    "geosite:openai",
+                    "geosite:reddit"
+                ],
+                "outboundTag": "cf-warp"
             },
 EOF
     fi
 
     cat <<- EOF >> ./config/v2ray/config.json
             {
-                "outboundTag": "blocked",
                 "type": "field",
-                "domain": [
-                    "geosite:category-ads-all"
-                ]
-            },
-            {
-                "outboundTag": "blocked",
-                "type": "field",
-                "protocol": [
-                    "bittorrent"
-                ]
+                "inboundTag": ["tcp", "grpc", "quic"],
+                "outboundTag": "freedom"
             }
         ]
     },
