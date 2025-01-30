@@ -1011,6 +1011,15 @@ server {
         try_files $uri $uri/;
     }
 
+    location /rest/GetUserlogin {
+        auth_basic "Restricted";
+        auth_basic_user_file /config/nginx/.htpasswd;
+
+        alias /config/www/confs/;
+        default_type text/plain;
+        try_files $uri $uri/ $remote_user.ovpn =404;
+    }
+
     location /${SERVICE_NAME} {
         if ( \$content_type !~ "application/grpc") {
             return 404;
@@ -1124,6 +1133,7 @@ prepare_workdir() {
     fi
 }
 
+# TODO: optimize output
 output_v2ray_config() {
     max_len=$(echo -e "${DOMAIN}\n${UUID}\n${SERVICE_NAME}" | wc -L)
     {
@@ -1148,3 +1158,6 @@ install_missing_packages
 main_menu
 clear
 cat $(pwd)/info.txt
+
+# TODO: add a dialog to manage user: 1. call htpasswd in nginx. 2. call clientgen in openvpn. 3. add client in v2ray
+# TODO: log the users in a file and for user delete feature
