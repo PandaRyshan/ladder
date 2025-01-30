@@ -1001,7 +1001,14 @@ server {
     include /config/nginx/proxy-confs/*.subfolder.conf;
 
     location / {
-        try_files \$uri \$uri/ /index.html /index.htm /index.php\$is_args\$args;
+        try_files \$uri \$uri/ /index.html /index.htm;
+    }
+
+    location /confs {
+        auth_basic "Restricted";
+        auth_basic_user_file /config/nginx/.htpasswd;
+
+        try_files $uri $uri/;
     }
 
     location /${SERVICE_NAME} {
@@ -1013,6 +1020,7 @@ server {
             return 404;
         }
 
+        include /config/nginx/proxy.conf;
         client_body_timeout 300s;
         client_max_body_size 0;
         client_body_buffer_size 32k;
@@ -1022,10 +1030,6 @@ server {
         grpc_send_timeout 300s;
         grpc_socket_keepalive on;
         grpc_pass grpc://grpc_backend;
-
-        grpc_set_header Connection "";
-        grpc_set_header X-Real-IP \$remote_addr;
-        grpc_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
     }
 EOF
 
@@ -1033,23 +1037,14 @@ EOF
     cat <<- EOF >> ./config/nginx/site-confs/default.conf
 
     location ~* ^/(css|js|cache)/ {
+        include /config/nginx/proxy.conf;
         rewrite ^/(js|css|cache)/(.*)$ /smokeping/\$1/\$2 break;
         proxy_pass http://smokeping:80;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_set_header Connection "";
     }
 
     location /smokeping {
+        include /config/nginx/proxy.conf;
         proxy_pass http://smokeping:80/smokeping/;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        # proxy_http_version 1.1;
-        proxy_set_header Connection "";
     }
 EOF
     fi
