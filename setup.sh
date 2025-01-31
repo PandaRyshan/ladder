@@ -25,11 +25,12 @@ main_menu() {
     CURRENT_INDEX=0
     items=(
         1 "状态 Status" on
-        2 "部署 Deploy" off
-        3 "重启 Restart" off
-        4 "更新 Upgrade" off
-        5 "停止 Stop" off
-        6 "卸载 Uninstall" off
+        2 "添加用户 Add User" off
+        3 "部署 Deploy" off
+        4 "重启 Restart" off
+        5 "更新 Upgrade" off
+        6 "停止 Stop" off
+        7 "卸载 Uninstall" off
     )
     while true; do
         choice=$(dialog --clear \
@@ -44,11 +45,12 @@ main_menu() {
 
         case $choice in
             1) status_menu ;;
-            2) deploy_menu;;
-            3) restart_containers ;;
-            4) upgrade_containers ;;
-            5) stop_containers ;;
-            6) down_containers ;;
+            2) add_user;;
+            3) deploy_menu;;
+            4) restart_containers ;;
+            5) upgrade_containers ;;
+            6) stop_containers ;;
+            7) down_containers ;;
             *) ;;
         esac
     done
@@ -56,6 +58,11 @@ main_menu() {
 
 status_menu() {
     docker compose ps 2>&1 | dialog --title "容器状态" --programbox 20 70
+}
+
+add_user() {
+    # TODO: add a dialog to manage user: 1. call htpasswd in nginx. 2. call clientgen in openvpn. 3. add client in v2ray
+    # TODO: log the users in a file and for user delete feature
 }
 
 deploy_menu() {
@@ -1158,6 +1165,3 @@ install_missing_packages
 main_menu
 clear
 cat $(pwd)/info.txt
-
-# TODO: add a dialog to manage user: 1. call htpasswd in nginx. 2. call clientgen in openvpn. 3. add client in v2ray
-# TODO: log the users in a file and for user delete feature
