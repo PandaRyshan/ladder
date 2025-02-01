@@ -61,7 +61,18 @@ status_menu() {
 }
 
 add_user() {
-    # TODO: add a dialog to manage user: 1. call htpasswd in nginx. 2. call clientgen in openvpn. 3. add client in v2ray
+    new_username=$(dialog --inputbox "请输入用户名" 7 50 3>&1 1>&2 2>&3)
+    docker compose exec nginx htpasswd -c /config/nginx/.htpasswd $new_username
+    docker compose exec openvpn clientgen $new_username
+    cp ./config/openvpn/clients/$new_username.ovpn ./config/www/conf/
+    new_user_uuid=$(uuidgen)
+    jq --arg new_user_uuid "$new_user_uuid" '
+        .inbounds[] |= (
+            .settings.clients += [{"id": $new_user_uuid}]
+        )
+    ' ./config/v2ray/config.json > ./config/v2ray/config.json.tmp
+    mv ./config/v2ray/config.json.tmp ./config/v2ray/config.json
+    docker compose restart v2ray
     # TODO: log the users in a file and for user delete feature
 }
 
