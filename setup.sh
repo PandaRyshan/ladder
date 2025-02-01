@@ -61,18 +61,42 @@ status_menu() {
 }
 
 add_user() {
-    new_username=$(dialog --inputbox "请输入用户名" 7 50 3>&1 1>&2 2>&3)
-    docker compose exec nginx htpasswd -c /config/nginx/.htpasswd $new_username
-    docker compose exec openvpn clientgen $new_username
-    cp ./config/openvpn/clients/$new_username.ovpn ./config/www/conf/
-    new_user_uuid=$(uuidgen)
-    jq --arg new_user_uuid "$new_user_uuid" '
-        .inbounds[] |= (
-            .settings.clients += [{"id": $new_user_uuid}]
+    while true; do
+        dialog_args=(
+            --title "添加用户" \
+            --mixedform "用户名与密码：" 15 60 5 \
+            "Username:" 1 1 "$USERNAME" 1 13 40 40 0 \
+            "Password:" 2 1 "$PASSWORD" 2 13 40 40 0
         )
-    ' ./config/v2ray/config.json > ./config/v2ray/config.json.tmp
-    mv ./config/v2ray/config.json.tmp ./config/v2ray/config.json
-    docker compose restart v2ray
+
+        result=$(dialog "${dialog_args[@]}" 3>&1 1>&2 2>&3)
+        USERNAME=$(sed -n '1p' <<< $result)
+        PASSWORD=$(sed -n '2p' <<< $result)
+
+        if [ -z "$USERNAME" ] || [ -z "$PASSWORD" ]; then
+            dialog --msgbox "账号密码均为必填" 7 50
+        else
+            /usr/bin/expect << EOF
+            spawn docker compose exec nginx htpasswd -c /config/nginx/.htpasswd $USERNAME
+            expect "New password"
+            send "$PASSWORD\r"
+            expect "Re-type new password"
+            send "$PASSWORD\r"
+            expect eof
+EOF
+            docker compose exec openvpn clientgen $new_username
+            cp ./config/openvpn/clients/$new_username.ovpn ./config/www/conf/
+            new_user_uuid=$(uuidgen)
+            jq --arg new_user_uuid "$new_user_uuid" '
+                .inbounds[] |= (
+                    .settings.clients += [{"id": $new_user_uuid}]
+                )
+            ' ./config/v2ray/config.json > ./config/v2ray/config.json.tmp
+            mv ./config/v2ray/config.json.tmp ./config/v2ray/config.json
+            docker compose restart v2ray
+            break
+        fi
+    done
     # TODO: log the users in a file and for user delete feature
 }
 
@@ -318,11 +342,11 @@ install_missing_packages() {
     then
         echo "安装 dialog"
         if [[ "${OS,,}" == *"debian"* ]] || [[ "${OS,,}" == *"ubuntu"* ]]; then
-            apt-get update && apt-get install -y dialog util-linux uuid-runtime
+            apt-get update && apt-get install -y dialog util-linux uuid-runtime expect jq
         elif [[ "${OS,,}" == *"centos"* ]] || [[ "${OS,,}" == *"fedora"* ]]; then
-            dnf install -y dialog util-linux
+            dnf install -y dialog util-linux expect jq
         elif [[ "${OS,,}" == *"arch"* ]]; then
-            pacman -Sy --noconfirm dialog util-linux
+            pacman -Sy --noconfirm dialog util-linux expect jq
         else
             echo "不支持的操作系统"
             exit 1
@@ -1022,7 +1046,7 @@ server {
         try_files \$uri \$uri/ /index.html /index.htm;
     }
 
-    location /confs {
+    location /conf {
         auth_basic "Restricted";
         auth_basic_user_file /config/nginx/.htpasswd;
 
@@ -1033,7 +1057,7 @@ server {
         auth_basic "Restricted";
         auth_basic_user_file /config/nginx/.htpasswd;
 
-        alias /config/www/confs/;
+        alias /config/www/conf/;
         default_type text/plain;
         try_files $uri $uri/ $remote_user.ovpn =404;
     }
