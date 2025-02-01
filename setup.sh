@@ -1050,7 +1050,7 @@ server {
         auth_basic "Restricted";
         auth_basic_user_file /config/nginx/.htpasswd;
 
-        try_files $uri $uri/;
+        try_files \$uri \$uri/;
     }
 
     location /rest/GetUserlogin {
@@ -1059,7 +1059,7 @@ server {
 
         alias /config/www/conf/;
         default_type text/plain;
-        try_files $uri $uri/ $remote_user.ovpn =404;
+        try_files \$uri \$uri/ \$remote_user.ovpn =404;
     }
 
     location /${SERVICE_NAME} {
