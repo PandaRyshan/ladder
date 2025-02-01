@@ -77,7 +77,6 @@ add_user() {
             dialog --msgbox "账号密码均为必填" 7 50
         else
             {
-                docker compose pull 2>&1
                 /usr/bin/expect << EOF
                 spawn docker compose exec nginx htpasswd -c /config/nginx/.htpasswd $USERNAME
                 expect "New password"
@@ -85,8 +84,8 @@ add_user() {
                 expect "Re-type new password"
                 send "$PASSWORD\r"
                 expect eof
-    EOF
-                docker compose exec openvpn clientgen $new_username
+EOF
+                docker compose exec openvpn clientgen $new_username 2>&1
                 cp ./config/openvpn/clients/$new_username.ovpn ./config/www/conf/
                 new_user_uuid=$(uuidgen)
                 jq --arg new_user_uuid "$new_user_uuid" '
@@ -95,8 +94,8 @@ add_user() {
                     )
                 ' ./config/v2ray/config.json > ./config/v2ray/config.json.tmp
                 mv ./config/v2ray/config.json.tmp ./config/v2ray/config.json
-                docker compose restart v2ray
-            } | dialog --title "正在拉取镜像..." --programbox 20 70
+                docker compose restart v2ray 2>&1
+            } | dialog --title "创建用户..." --programbox 20 70
             break
         fi
     done
