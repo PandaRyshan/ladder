@@ -582,8 +582,8 @@ services:
       - PUID=99
       - PGID=99
       - TZ=\${TIMEZONE}
-      - URL=*.\${DOMAIN}
-      #- SUBDOMAINS=www,prx,dl
+      - URL=\${DOMAIN}
+      - SUBDOMAINS=prx,dl
       #- ONLY_SUBDOMAINS=true
       - VALIDATION=http
       - EMAIL=\${EMAIL}
@@ -992,13 +992,13 @@ EOF
 
     if [[ "$DEPLOY_CHOICES" == *"$V2RAY"* ]]; then
         cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
-    use_backend v2ray_tcp if is_proxy !is_h1 !is_h2 has_sni
+    use_backend v2ray_tcp if is_proxy !is_h1 !is_h2
 EOF
     fi
 
     if [[ "$DEPLOY_CHOICES" == *"$OPENVPN"* ]]; then
         cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
-    use_backend openvpn if !is_h1 !is_h2 !has_sni
+    use_backend openvpn if !has_sni !is_h1 !is_h2
 EOF
     fi
 
