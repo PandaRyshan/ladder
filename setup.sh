@@ -77,24 +77,32 @@ add_user() {
             dialog --msgbox "账号密码均为必填" 7 50
         else
             {
+                mkdir -p config/www/conf/
+                touch config/nginx/.htpasswd
                 /usr/bin/expect << EOF
-                spawn docker compose exec nginx htpasswd -c /config/nginx/.htpasswd $USERNAME
+                spawn docker compose exec nginx htpasswd /config/nginx/.htpasswd $USERNAME
                 expect "New password"
                 send "$PASSWORD\r"
                 expect "Re-type new password"
                 send "$PASSWORD\r"
                 expect eof
 EOF
-                docker compose exec openvpn clientgen $new_username 2>&1
-                cp ./config/openvpn/clients/$new_username.ovpn ./config/www/conf/
-                new_user_uuid=$(uuidgen)
-                jq --arg new_user_uuid "$new_user_uuid" '
+                docker compose exec openvpn clientgen $USERNAME 2>&1
+                cp ./config/openvpn/clients/$USERNAME.ovpn ./config/www/conf/
+                UUID=$(uuidgen)
+                jq --arg new_user_uuid "$UUID" '
                     .inbounds[] |= (
                         .settings.clients += [{"id": $new_user_uuid}]
                     )
                 ' ./config/v2ray/config.json > ./config/v2ray/config.json.tmp
                 mv ./config/v2ray/config.json.tmp ./config/v2ray/config.json
+                echo "重启 V2Ray 服务 Restarting V2Ray service..."
                 docker compose restart v2ray 2>&1
+                DOMAIN=$(cat .env | grep DOMAIN | cut -d '=' -f2)
+                echo ""
+                echo "用户 $USERNAME 添加成功"
+                echo "UUID: $new_user_uuid"
+                echo "OVPN配置下载: https://$DOMAIN/rest/GetUserlogin"
             } | dialog --title "创建用户..." --programbox 20 70
             break
         fi
@@ -574,9 +582,9 @@ services:
       - PUID=99
       - PGID=99
       - TZ=\${TIMEZONE}
-      - URL=\${DOMAIN} # can fill a subdomain.example.com
-      # - SUBDOMAINS=www,vpn  # optional, comma separated
-      # - ONLY_SUBDOMAINS=true  # optional
+      - URL=*.\${DOMAIN}
+      #- SUBDOMAINS=www,prx,dl
+      #- ONLY_SUBDOMAINS=true
       - VALIDATION=http
       - EMAIL=\${EMAIL}
     volumes:
@@ -965,10 +973,16 @@ frontend tls-in
     bind :::443 v4v6
 
     tcp-request inspect-delay 5s
-    tcp-request content accept if { req_ssl_hello_type 1 }
+    tcp-request content accept if { req.ssl_hello_type 1 }
     tcp-request content accept if { req.payload(0,1) -m bin 05 }
+    tcp-request content accept if { req.ssl_sni -i dl.${DOMAIN} }
+    tcp-request content accept if { req.ssl_sni -i prx.${DOMAIN} }
+    tcp-request content accept if !{ req.ssl_sni -m found }
     tcp-request content accept if HTTP
+    tcp-request content reject
 
+    acl is_download req.ssl_sni -i dl.${DOMAIN}
+    acl is_proxy req.ssl_sni -i prx.${DOMAIN}
     acl is_socks req.payload(0,1) -m bin 05
     acl is_h2 req.ssl_alpn -i h2
     acl is_h1 req.ssl_alpn -i http/1.1
@@ -978,7 +992,7 @@ EOF
 
     if [[ "$DEPLOY_CHOICES" == *"$V2RAY"* ]]; then
         cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
-    use_backend v2ray_tcp if !is_h1 !is_h2 has_sni
+    use_backend v2ray_tcp if is_proxy !is_h1 !is_h2 has_sni
 EOF
     fi
 
@@ -989,6 +1003,7 @@ EOF
     fi
 
     cat <<-EOF >> ./config/haproxy/haproxy.tcp.cfg
+    use_backend nginx if is_download
     default_backend nginx
 
 backend nginx
