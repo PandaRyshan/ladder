@@ -14,7 +14,7 @@
 
 * 512MB RAM
 * Ubuntu / Debian / Arch / Fedora / CentOS
-* 拥有一个域名，并解析到自己 VPS 的 IP
+* 拥有一个域名，并解析 `prx` 和 `dl` 两个子域名到自己 VPS 的 IP，也可以使用通配符 `*`，如 `*.us.example.com`
 * 确保 VPS 的 80 和 443 端口是开放的
 
 ## 用法
@@ -80,11 +80,8 @@ V2Ray 配置在 ladder 目录下的 info.txt 内，可以使用 `cat` 命令查�
          ]
       },
       "streamSettings": {
-         "network": "grpc",
-         "security": "tls",
-         "grpcSettings": {
-            "serviceName": "xxxxxxxxxxxxxxxxxxxxxxx"
-         }
+         "network": "tcp",
+         "security": "tls"
       }
    }
 ]
@@ -92,22 +89,16 @@ V2Ray 配置在 ladder 目录下的 info.txt 内，可以使用 `cat` 命令查�
    "rules": [
       {
          "type": "field",
-         "inboundTag": ["grpc", "tcp"]
+         "inboundTag": ["tcp"]
          "outboundTag": "my-remote-server"
       }
    ]
 }
 ```
 
-### 新建 OpenVPN 用户并下载客户端配置
+### 新建用户
 
-```shell
-# 把 <username> 替换为你想要的用户名
-docker exec openvpn /build-client.sh <username>
-
-# 把配置文件复制到 web 资源目录，之后可以访问  https://你的域名/client-<username>.ovpn 来下载客户端配置文件
-cp ./config/openvpn/client/client-<username>.ovpn ./config/www/
-```
+使用菜单中的添加用户功能，会自动增加一个 v2ray 客户端 UUID，生成一个 OpenVPN 的客户端证书配置
 
 ## 问题
 
@@ -125,8 +116,4 @@ cp ./config/openvpn/client/client-<username>.ovpn ./config/www/
 
 ## Todo
 
-* [x] add menu
 * [ ] add help
-* [x] deploy via script
-* [x] upgrade via script
-* [x] remove via script

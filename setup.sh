@@ -535,6 +535,8 @@ env_config() {
     cat <<- EOF > .env
 TIMEZONE=${TIMEZONE}
 DOMAIN=${DOMAIN}
+SUB_PRX=prx
+SUB_DL=dl
 
 # warp plus key
 WARP_KEY=${WARP_KEY}
@@ -583,8 +585,8 @@ services:
       - PGID=99
       - TZ=\${TIMEZONE}
       - URL=\${DOMAIN}
-      - SUBDOMAINS=prx,dl
-      #- ONLY_SUBDOMAINS=true
+      - SUBDOMAINS=\${SUB_PRX},\${SUB_DL}
+      - ONLY_SUBDOMAINS=true
       - VALIDATION=http
       - EMAIL=\${EMAIL}
     volumes:
@@ -1201,13 +1203,14 @@ output_v2ray_config() {
         echo "V2Ray 配置："
         printf "+--------------+-%-${max_len}s-+\n" | sed "s/ /-/g"
         printf "| %-12s | %-${max_len}s |\n" "Domain:" "${DOMAIN}"
-        printf "| %-12s | %-${max_len}s |\n" "Protocol:" "tcp / grpc / quic / socks"
+        printf "| %-12s | %-${max_len}s |\n" "Protocol:" "tcp"
         printf "| %-12s | %-${max_len}s |\n" "UUID:" "${UUID}"
-        printf "| %-12s | %-${max_len}s |\n" "ServiceName:" "${SERVICE_NAME}"
+        # printf "| %-12s | %-${max_len}s |\n" "ServiceName:" "${SERVICE_NAME}"
         printf "| %-12s | %-${max_len}s |\n" "TLS:" "Yes"
         printf "+--------------+-%-${max_len}s-+\n" | sed "s/ /-/g"
         echo ""
-        echo "OpenVPN 配置可通过地址 https://${DOMAIN}/client-xxxx.ovpn 的方式下载"
+        echo "OpenVPN 配置可在客户端内通过地址 https://${SUB_DL}.${DOMAIN}/ 导入"
+        echo "或通过地址 https://${SUB_DL}.${DOMAIN}/conf/<your-user-name>.ovpn 下载配置文件"
     } | tee $(pwd)/info.txt
 }
 
