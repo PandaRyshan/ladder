@@ -1209,8 +1209,8 @@ output_v2ray_config() {
         printf "| %-12s | %-${max_len}s |\n" "TLS:" "Yes"
         printf "+--------------+-%-${max_len}s-+\n" | sed "s/ /-/g"
         echo ""
-        echo "OpenVPN 配置可在客户端内通过地址 https://${SUB_DL}.${DOMAIN}/ 导入"
-        echo "或通过地址 https://${SUB_DL}.${DOMAIN}/conf/<your-user-name>.ovpn 下载配置文件"
+        echo "OpenVPN 配置可在客户端内通过地址 https://dl.${DOMAIN}/ 导入"
+        echo "或通过地址 https://dl.${DOMAIN}/conf/<your-user-name>.ovpn 下载配置文件"
     } | tee $(pwd)/info.txt
 }
 
