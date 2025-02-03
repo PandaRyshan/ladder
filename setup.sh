@@ -586,7 +586,7 @@ services:
       - TZ=\${TIMEZONE}
       - URL=\${DOMAIN}
       - SUBDOMAINS=\${SUB_PRX},\${SUB_DL}
-      - ONLY_SUBDOMAINS=true
+      - ONLY_SUBDOMAINS=false
       - VALIDATION=http
       - EMAIL=\${EMAIL}
     volumes:
@@ -641,7 +641,7 @@ EOF
     image: ghcr.io/pandaryshan/openvpn:latest
     container_name: openvpn
     environment:
-      - DOMAIN=\${DOMAIN}
+      - DOMAIN=\${SUB_PRX}.\${DOMAIN}
     volumes:
       - ./config/openvpn:/etc/openvpn
     devices:
