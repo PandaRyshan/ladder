@@ -568,7 +568,7 @@ services:
     container_name: haproxy_tcp
     volumes:
       - ./config/haproxy/haproxy.tcp.cfg:/usr/local/etc/haproxy/haproxy.cfg
-      - ./config/certs/live/\${DOMAIN}:/etc/ssl/certs
+      - ./config/certs/live/\${SUB_PRX}.\${DOMAIN}:/etc/ssl/certs
     networks:
       - ipv6
     ports:
@@ -586,7 +586,7 @@ services:
       - TZ=\${TIMEZONE}
       - URL=\${DOMAIN}
       - SUBDOMAINS=\${SUB_PRX},\${SUB_DL}
-      - ONLY_SUBDOMAINS=false
+      - ONLY_SUBDOMAINS=true
       - VALIDATION=http
       - EMAIL=\${EMAIL}
     volumes:
@@ -611,7 +611,7 @@ EOF
     volumes:
       - ./config/v2ray/config.json:/etc/v2ray/config.json
       - ./config/geodata:/usr/share/v2ray
-      - ./config/certs/live/\${DOMAIN}:/etc/ssl/certs/v2ray
+      - ./config/certs/live/\${SUB_PRX}.\${DOMAIN}:/etc/ssl/certs/v2ray
     networks:
       - ipv6
     restart: unless-stopped
@@ -1036,7 +1036,7 @@ nginx_config() {
     mkdir -p ./config/www/
     curl -sLo ./config/www/index.html https://raw.githubusercontent.com/PandaRyshan/ladder/main/config/www/index.html
     cat <<- EOF > ./config/nginx/site-confs/default.conf
-## Version 2024/07/16 - https://github.com/linuxserver/docker-swag/blob/master/root/defaults/nginx/site-confs/default.conf.sample
+## Version 2024/12/17 - https://github.com/linuxserver/docker-swag/blob/master/root/defaults/nginx/site-confs/default.conf.sample
 ## Changelog: https://github.com/linuxserver/docker-swag/commits/master/root/defaults/nginx/site-confs/default.conf.sample
 
 server {
@@ -1057,7 +1057,7 @@ server {
     include /config/nginx/ssl.conf;
 
     root /config/www;
-    index index.html index.htm index.php;
+    index index.html index.htm;
 
     include /config/nginx/proxy-confs/*.subfolder.conf;
 
@@ -1078,7 +1078,7 @@ server {
 
         alias /config/www/conf/;
         default_type text/plain;
-        try_files \$uri \$uri/ \$remote_user.ovpn =404;
+        try_files \$remote_user.ovpn =404;
     }
 
     location /${SERVICE_NAME} {
@@ -1133,7 +1133,6 @@ upstream grpc_backend {
 }
 
 include /config/nginx/proxy-confs/*.subdomain.conf;
-proxy_cache_path cache/ keys_zone=auth_cache:10m;
 EOF
 }
 
