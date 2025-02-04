@@ -1201,7 +1201,7 @@ output_v2ray_config() {
         echo "安装脚本已移动至容器配置目录：${pwd}"
         echo "V2Ray 配置："
         printf "+--------------+-%-${max_len}s-+\n" | sed "s/ /-/g"
-        printf "| %-12s | %-${max_len}s |\n" "Domain:" "${DOMAIN}"
+        printf "| %-12s | %-${max_len}s |\n" "Domain:" "prx.${DOMAIN}"
         printf "| %-12s | %-${max_len}s |\n" "Protocol:" "tcp"
         printf "| %-12s | %-${max_len}s |\n" "UUID:" "${UUID}"
         # printf "| %-12s | %-${max_len}s |\n" "ServiceName:" "${SERVICE_NAME}"
