@@ -1,25 +1,36 @@
 #!/bin/bash
 
+trap 'clear; exit' SIGINT
+
 # 检查是否以 root 身份运行或以 sudo 权限运行
 if [ "$EUID" -ne 0 ] && [ -z "$SUDO_USER" ]; then
   echo "请以 root 身份或使用 sudo 运行此脚本"
   exit 1
 fi
 
-PREVIOUS_MENU=1
 MAIN_MENU=1
 DEPLOY_MENU=2
-INPUT_CONFIG_MENU=3
-SYSCTL_MENU=4
+V2RAY_CONFIG_MENU=3
+WARP_CONFIG_MENU=4
+SMOKEPING_CONFIG_MENU=5
+SYSCTL_MENU=6
+
+V2RAY=1
+WARP=2
+OPENVPN=3
+SMOKEPING=4
 
 main_menu() {
+    MENU_HISTORY=($MAIN_MENU)
+    CURRENT_INDEX=0
     items=(
         1 "状态 Status" on
-        2 "部署 Deploy" off
-        3 "重启 Restart" off
-        4 "更新 Upgrade" off
-        5 "停止 Stop" off
-        6 "卸载 Uninstall" off
+        2 "添加用户 Add User" off
+        3 "部署 Deploy" off
+        4 "重启 Restart" off
+        5 "更新 Upgrade" off
+        6 "停止 Stop" off
+        7 "卸载 Uninstall" off
     )
     while true; do
         choice=$(dialog --clear \
@@ -34,17 +45,12 @@ main_menu() {
 
         case $choice in
             1) status_menu ;;
-            2)
-                deploy_menu
-                input_config_menu
-                sysctl_menu
-                deploy
-                break
-                ;;
-            3) restart_containers ;;
-            4) upgrade_containers ;;
-            5) stop_containers ;;
-            6) down_containers ;;
+            2) add_user;;
+            3) deploy_menu;;
+            4) restart_containers ;;
+            5) upgrade_containers ;;
+            6) stop_containers ;;
+            7) down_containers ;;
             *) ;;
         esac
     done
@@ -54,16 +60,68 @@ status_menu() {
     docker compose ps 2>&1 | dialog --title "容器状态" --programbox 20 70
 }
 
+add_user() {
+    while true; do
+        dialog_args=(
+            --title "添加用户" \
+            --mixedform "用户名与密码：" 15 60 5 \
+            "Username:" 1 1 "$USERNAME" 1 13 40 40 0 \
+            "Password:" 2 1 "$PASSWORD" 2 13 40 40 0
+        )
+
+        result=$(dialog "${dialog_args[@]}" 3>&1 1>&2 2>&3)
+        USERNAME=$(sed -n '1p' <<< $result)
+        PASSWORD=$(sed -n '2p' <<< $result)
+
+        if [ -z "$USERNAME" ] || [ -z "$PASSWORD" ]; then
+            dialog --msgbox "账号密码均为必填" 7 50
+        else
+            {
+                mkdir -p config/www/conf/
+                touch config/nginx/.htpasswd
+                /usr/bin/expect << EOF
+                spawn docker compose exec nginx htpasswd /config/nginx/.htpasswd $USERNAME
+                expect "New password"
+                send "$PASSWORD\r"
+                expect "Re-type new password"
+                send "$PASSWORD\r"
+                expect eof
+EOF
+                docker compose exec openvpn clientgen $USERNAME 2>&1
+                cp ./config/openvpn/clients/$USERNAME.ovpn ./config/www/conf/
+                UUID=$(uuidgen)
+                jq --arg new_user_uuid "$UUID" '
+                    .inbounds[] |= (
+                        .settings.clients += [{"id": $new_user_uuid}]
+                    )
+                ' ./config/v2ray/config.json > ./config/v2ray/config.json.tmp
+                mv ./config/v2ray/config.json.tmp ./config/v2ray/config.json
+                echo "重启 V2Ray 服务 Restarting V2Ray service..."
+                docker compose restart v2ray 2>&1
+                DOMAIN=$(cat .env | grep DOMAIN | cut -d '=' -f2)
+                echo ""
+                echo "用户 $USERNAME 添加成功"
+                echo "UUID: $new_user_uuid"
+                echo "OVPN配置下载: https://$DOMAIN/rest/GetUserlogin"
+            } | dialog --title "创建用户..." --programbox 20 70
+            break
+        fi
+    done
+    # TODO: log the users in a file and for user delete feature
+}
+
 deploy_menu() {
+    MENU_HISTORY=($MAIN_MENU $DEPLOY_MENU)
+    CURRENT_INDEX=1
     while true; do
         DEPLOY_CHOICES=$(dialog --clear \
             --title "选择要部署的组件" \
             --extra-button --extra-label "Previous" \
             --checklist "请选择至少一个选项：" 15 50 5 \
-            1 "V2Ray" on \
-            2 "Warp" off \
-            3 "OpenVPN" off \
-            4 "SmokePing" off \
+            $V2RAY "V2Ray" on \
+            $WARP "Warp" off \
+            $OPENVPN "OpenVPN" off \
+            $SMOKEPING "SmokePing" off \
             3>&1 1>&2 2>&3)
 
         exit_status=$?
@@ -72,52 +130,40 @@ deploy_menu() {
         if [ -z "$DEPLOY_CHOICES" ]; then
             dialog --msgbox "请至少选择一项" 7 50
         else
+            for choice in $DEPLOY_CHOICES; do
+                case $choice in
+                    $V2RAY) MENU_HISTORY+=($V2RAY_CONFIG_MENU) ;;
+                    $WARP) MENU_HISTORY+=($WARP_CONFIG_MENU) ;;
+                    $SMOKEPING) MENU_HISTORY+=($SMOKEPING_CONFIG_MENU) ;;
+                esac
+            done
+            MENU_HISTORY+=($SYSCTL_MENU)
             break
         fi
     done
+    next_menu
 }
 
-input_config_menu() {
-    PREVIOUS_MENU=2
+v2ray_config_menu() {
     TIMEZONE=${1:-"Asia/Shanghai"}
     DOMAIN=${2:-""}
-    WARP_KEY=${3:-""}
+
     while true; do
         dialog_args=(
-            --title "V2Ray 配置" \
+            --title "环境配置" \
             --extra-button --extra-label "Previous" \
-            --mixedform "请输入 V2Ray 配置信息：" 15 60 5 \
-            "时区：" 1 1 "$TIMEZONE" 1 13 40 40 0 \
-            "域名：" 2 1 "$DOMAIN" 2 13 40 40 0
+            --mixedform "请输入环境配置信息：" 15 60 5 \
+            "Timezone:" 1 1 "$TIMEZONE" 1 13 40 40 0 \
+            "Domain:" 2 1 "$DOMAIN" 2 13 40 40 0
         )
-
-        # 判断 DEPLOY_CHOICES 中是否包含 Warp 选项，如存在则添加 Warp Key 输入框
-        if [[ $DEPLOY_CHOICES == *"2"* ]]; then
-            dialog_args+=(
-                \
-                "Warp Key：" 3 1 "$WARP_KEY" 3 13 40 40 0 )
-        fi
-
-        if [[ $DEPLOY_CHOICES == *"4"* ]]; then
-            dialog_args+=(
-                \
-                "Master URL：" 4 1 "$MASTER_URL" 4 13 40 40 0 \
-                "Secret：" 5 1 "$SHARED_SECRET" 5 13 40 40 0
-            )
-        fi
 
         result=$(dialog "${dialog_args[@]}" 3>&1 1>&2 2>&3)
 
         exit_status=$?
         exit_operation $exit_status
-        # if exit_operation $exit_status; then
-        #     break
-        # fi
 
         TIMEZONE=$(sed -n '1p' <<< $result)
         DOMAIN=$(sed -n '2p' <<< $result)
-        WARP_KEY=$(sed -n '3p' <<< $result)
-        MASTER_URL=$(sed -n '4p' <<< $result)
 
         if [ -z "$TIMEZONE" ] || [ -z "$DOMAIN" ]; then
             dialog --msgbox "所有信息均为必填，请继续输入。" 7 50
@@ -125,15 +171,78 @@ input_config_menu() {
             break
         fi
     done
+    while true; do
+        dialog --yesno "是否启用 socks5?" 7 50
+        if [ $? -eq 0 ]; then
+            ENABLE_SOCKS5="true"
+            dialog_args=(
+                --title "SOCKS5 配置" \
+                --extra-button --extra-label "Previous" \
+                --mixedform "请输入 SOCKS5 认证信息：" 15 60 5 \
+                "User:" 1 1 "" 1 13 40 40 0 \
+                "Password:" 2 1 "" 2 13 40 40 0
+            )
+            result=$(dialog "${dialog_args[@]}" 3>&1 1>&2 2>&3)
+            SOCKS5_USER=$(sed -n '1p' <<< $result)
+            SOCKS5_PASS=$(sed -n '2p' <<< $result)
+            if [ -z "$SOCKS5_USER" ] || [ -z "$SOCKS5_PASS" ]; then
+                dialog --msgbox "必须输入认证信息以启用Socks5" 7 50
+            else
+                break
+            fi
+        else
+            ENABLE_SOCKS5="false"
+            break
+        fi
+    done
+    next_menu
+}
+
+warp_config_menu() {
+    WARP_KEY=${1:-""}
+    if [[ $DEPLOY_CHOICES == *"$WARP"* ]]; then
+        dialog_args=(
+            --title "Warp 配置" \
+            --extra-button --extra-label "Previous" \
+            --mixedform "请输入环境配置信息：" 15 60 5 \
+            "Warp Key:" 1 1 "$WARP_KEY" 1 13 40 40 0
+        )
+        result=$(dialog "${dialog_args[@]}" 3>&1 1>&2 2>&3)
+        exit_status=$?
+        exit_operation $exit_status
+    fi
+    WARP_KEY=$(sed -n '1p' <<< $result)
+    next_menu
+}
+
+smokeping_config_menu() {
+    MASTER_URL=${1:-""}
+    SHARED_SECRET=${1:-""}
+    if [[ $DEPLOY_CHOICES == *"$SMOKEPING"* ]]; then
+        dialog_args=(
+            --title "Warp 配置" \
+            --extra-button --extra-label "Previous" \
+            --mixedform "请输入环境配置信息：" 15 60 5 \
+            "Host Name:" 1 1 "$HOST_NAME" 1 15 40 40 0 \
+            "Master URL:" 2 1 "$MASTER_URL" 2 15 40 40 0 \
+            "Shared Secret:" 3 1 "$SHARED_SECRET" 3 15 40 40 0
+        )
+        result=$(dialog "${dialog_args[@]}" 3>&1 1>&2 2>&3)
+        exit_status=$?
+        exit_operation $exit_status
+    fi
+    HOST_NAME=$(sed -n '1p' <<< $result)
+    MASTER_URL=$(sed -n '2p' <<< $result)
+    SHARED_SECRET=$(sed -n '3p' <<< $result)
+    next_menu
 }
 
 sysctl_menu() {
-    PREVIOUS_MENU=3
     while true; do
         dialog --clear \
             --title "优化 sysctl.conf" \
             --extra-button --extra-label "Previous" \
-            --yesno "是否优化 sysctl.conf？" 7 50
+            --yesno "是否优化 sysctl.conf?" 7 50
 
         exit_status=$?
         exit_operation $exit_status
@@ -141,17 +250,40 @@ sysctl_menu() {
         dialog --yesno "确认开始部署？" 7 50
         if [ $? -eq 0 ]; then
             SYSCTL_OPTIMIZE=$exit_status
+            deploy
             break
         fi
     done
 }
 
-back_previous_menu() {
+previous_menu() {
+    if [ ${#MENU_HISTORY[@]} -gt 1 ]; then
+        CURRENT_INDEX=$(($CURRENT_INDEX - 1))
+        PREVIOUS_MENU=${MENU_HISTORY[$CURRENT_INDEX]}
+    else
+        PREVIOUS_MENU=$MAIN_MENU
+    fi
     case $PREVIOUS_MENU in
         1) main_menu ;;
         2) deploy_menu ;;
-        3) input_config_menu $TIMEZONE $DOMAIN $WARP_KEY ;;
-        4) sysctl_menu ;;
+        3) v2ray_config_menu $TIMEZONE $DOMAIN ;;
+        4) warp_config_menu $WARP_KEY ;;
+        5) smokeping_config_menu $MASTER_URL $SHARED_SECRET ;;
+        6) sysctl_menu ;;
+    esac
+}
+
+next_menu() {
+    CURRENT_INDEX=$(($CURRENT_INDEX + 1))
+    NEXT_MENU=${MENU_HISTORY[$CURRENT_INDEX]}
+    # dialog --msgbox "CURRENT_INDEX: $CURRENT_INDEX\nNEXT_MENU: $NEXT_MENU" 7 50
+    case $NEXT_MENU in
+        1) main_menu ;;
+        2) deploy_menu ;;
+        3) v2ray_config_menu $TIMEZONE $DOMAIN ;;
+        4) warp_config_menu $WARP_KEY ;;
+        5) smokeping_config_menu $MASTER_URL $SHARED_SECRET ;;
+        6) sysctl_menu ;;
     esac
 }
 
@@ -159,13 +291,14 @@ exit_operation() {
     exit_status=$1
     case $exit_status in
         # Cancel
-        1) exit 0 ;;
+        1) clear; exit 0 ;;
         # Previous
-        3) back_previous_menu; return ;;
+        3) previous_menu; return ;;
         # ESC
         255)
             dialog --yesno "是否要退出？" 7 50
             if [ $? -eq 0 ]; then
+                clear
                 exit 0
             else
                 break
@@ -184,7 +317,7 @@ deploy() {
 }
 
 prepare_configs() {
-        if [[ "$DEPLOY_CHOICES" == *"3"* ]]; then
+        if [[ "$DEPLOY_CHOICES" == *"$OPENVPN"* ]]; then
             check_tun_device
         fi
         check_docker_env
@@ -219,11 +352,11 @@ install_missing_packages() {
     then
         echo "安装 dialog"
         if [[ "${OS,,}" == *"debian"* ]] || [[ "${OS,,}" == *"ubuntu"* ]]; then
-            apt-get update && apt-get install -y dialog util-linux uuid-runtime
+            apt-get update && apt-get install -y dialog util-linux uuid-runtime expect jq
         elif [[ "${OS,,}" == *"centos"* ]] || [[ "${OS,,}" == *"fedora"* ]]; then
-            dnf install -y dialog util-linux
+            dnf install -y dialog util-linux expect jq
         elif [[ "${OS,,}" == *"arch"* ]]; then
-            pacman -Sy --noconfirm dialog util-linux
+            pacman -Sy --noconfirm dialog util-linux expect jq
         else
             echo "不支持的操作系统"
             exit 1
@@ -367,27 +500,30 @@ EOF
         tee /etc/sysctl.d/50-network.conf <<- EOF
 fs.file-max = 51200
 
-net.core.rmem_max = 67108864
-net.core.wmem_max = 67108864
-net.core.netdev_max_backlog = 250000
-net.core.somaxconn = 4096
-
+net.ipv4_timestamps = 1
+net.ipv4.tcp_sack = 1
+net.ipv4.tcp_window_scaling = 1
+net.ipv4.tcp_mtu_probing = 2
 net.ipv4.tcp_syncookies = 1
 net.ipv4.tcp_tw_reuse = 1
+net.ipv4.tcp_fastopen = 3
+net.ipv4.tcp_retries2 = 3
 net.ipv4.tcp_fin_timeout = 30
 net.ipv4.tcp_keepalive_time = 1200
 net.ipv4.ip_local_port_range = 10000 65000
-net.ipv4.tcp_max_syn_backlog = 8192
 net.ipv4.tcp_max_tw_buckets = 5000
-net.ipv4.tcp_fastopen = 3
-net.ipv4.tcp_mem = 25600 51200 102400
-net.ipv4.tcp_rmem = 4096 87380 67108864
-net.ipv4.tcp_wmem = 4096 65536 67108864
-net.ipv4.tcp_mtu_probing = 1
+net.core.netdev_max_backlog = 500000
+net.core.somaxconn = 4096
+net.ipv4.tcp_max_syn_backlog = 8192
+
+net.core.rmem_max = 67108864
+net.core.wmem_max = 67108864
+net.ipv4.tcp_mem = 65536 131072 262144
+net.ipv4.tcp_rmem = 4096 262144 134217728
+net.ipv4.tcp_wmem = 4096 262144 134217728
 
 net.core.default_qdisc = fq
-# net.ipv4.tcp_congestion_control = bbr
-net.ipv4.tcp_congestion_control = hybla
+net.ipv4.tcp_congestion_control = bbr
 EOF
 
         ulimit -n 51200
@@ -397,14 +533,26 @@ EOF
 
 env_config() {
     cat <<- EOF > .env
-TZ=${TIMEZONE}
+TIMEZONE=${TIMEZONE}
 DOMAIN=${DOMAIN}
+SUB_PRX=prx
+SUB_DL=dl
+
+# warp plus key
 WARP_KEY=${WARP_KEY}
+
+# smokeping config
+HOST_NAME=${HOST_NAME}
+MASTER_URL=${MASTER_URL}
+SHARED_SECRET=${SHARED_SECRET}
+
+# for notification
+EMAIL=${EMAIL}
 EOF
 }
 
 docker_compose_config() {
-    if [[ "$DEPLOY_CHOICES" == *"1"* ]]; then
+    if [[ "$DEPLOY_CHOICES" == *"$V2RAY"* ]]; then
         echo "下载 geodata. Downloading geodata..."
         mkdir -p ./config/geodata
         curl -sLo ./config/geodata/geoip.dat https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat
@@ -416,11 +564,11 @@ docker_compose_config() {
 services:
 
   haproxy_tcp:
-    image: pandasrun/haproxy:latest
+    image: ghcr.io/pandaryshan/haproxy:latest
     container_name: haproxy_tcp
     volumes:
       - ./config/haproxy/haproxy.tcp.cfg:/usr/local/etc/haproxy/haproxy.cfg
-      - ./config/certs/live/${DOMAIN}:/etc/ssl/certs
+      - ./config/certs/live/\${SUB_PRX}.\${DOMAIN}:/etc/ssl/certs
     networks:
       - ipv6
     ports:
@@ -435,10 +583,12 @@ services:
     environment:
       - PUID=99
       - PGID=99
-      - TZ=${TIMEZONE}
-      - URL=${DOMAIN}
+      - TZ=\${TIMEZONE}
+      - URL=\${DOMAIN}
+      - SUBDOMAINS=\${SUB_PRX},\${SUB_DL}
+      - ONLY_SUBDOMAINS=true
       - VALIDATION=http
-      - EMAIL=${EMAIL}
+      - EMAIL=\${EMAIL}
     volumes:
       - ./config/nginx:/config/nginx
       - ./config/certs:/config/etc/letsencrypt
@@ -451,17 +601,17 @@ services:
 
 EOF
 
-    if [[ "$DEPLOY_CHOICES" == *"1"* ]]; then
+    if [[ "$DEPLOY_CHOICES" == *"$V2RAY"* ]]; then
         cat <<- EOF >> docker-compose.yaml
   v2ray:
-    image: pandasrun/v2ray:latest
+    image: ghcr.io/pandaryshan/v2ray:latest
     container_name: v2ray
     environment:
       - WAIT_PATHS=/etc/ssl/certs/v2ray/priv-fullchain-bundle.pem
     volumes:
       - ./config/v2ray/config.json:/etc/v2ray/config.json
       - ./config/geodata:/usr/share/v2ray
-      - ./config/certs/live/${DOMAIN}:/etc/ssl/certs/v2ray
+      - ./config/certs/live/\${SUB_PRX}.\${DOMAIN}:/etc/ssl/certs/v2ray
     networks:
       - ipv6
     restart: unless-stopped
@@ -469,13 +619,13 @@ EOF
 EOF
     fi
 
-    if [[ "$DEPLOY_CHOICES" == *"2"* ]]; then
+    if [[ "$DEPLOY_CHOICES" == *"$WARP"* ]]; then
         cat <<- EOF >> docker-compose.yaml
   warp:
-    image: pandasrun/warp:latest
+    image: ghcr.io/pandaryshan/warp:latest
     container_name: warp
     environment:
-      - WARP_KEY=${WARP_KEY}
+      - WARP_KEY=\${WARP_KEY}
     volumes:
       - ./config/warp:/var/lib/cloudflare-warp
     networks:
@@ -485,13 +635,13 @@ EOF
 EOF
     fi
 
-    if [[ "$DEPLOY_CHOICES" == *"3"* ]]; then
+    if [[ "$DEPLOY_CHOICES" == *"$OPENVPN"* ]]; then
         cat <<- EOF >> docker-compose.yaml
   openvpn:
-    image: pandasrun/openvpn:latest
+    image: ghcr.io/pandaryshan/openvpn:latest
     container_name: openvpn
     environment:
-      - DOMAIN=${DOMAIN}
+      - DOMAIN=\${SUB_PRX}.\${DOMAIN}
     volumes:
       - ./config/openvpn:/etc/openvpn
     devices:
@@ -510,7 +660,7 @@ EOF
 EOF
     fi
 
-    if [[ "$DEPLOY_CHOICES" == *"4"* ]]; then
+    if [[ "$DEPLOY_CHOICES" == *"$SMOKEPING"* ]]; then
         smokeping_config
         cat <<- EOF >> docker-compose.yaml
   smokeping:
@@ -520,8 +670,9 @@ EOF
       - PUID=1000
       - PGID=1000
       - TZ=Asia/Shanghai
-      - MASTER_URL=${MASTER_URL}
-      - SHARED_SECRET=${SHARED_SECRET}
+      - MASTER_URL=\${MASTER_URL}
+      - SHARED_SECRET=\${SHARED_SECRET}
+    hostname: \${HOST_NAME}
     networks:
       - ipv6
     volumes:
@@ -565,10 +716,10 @@ v2ray_config() {
             "geosite:category-ads-all": "127.0.0.1"
         },
         "servers": [
-            "1.1.1.1",
             "8.8.8.8",
-            "https+local://cloudflare-dns.com/dns-query",
-            "https+local://dns.google/dns-query"
+            "1.1.1.1",
+            "https+local://dns.google/dns-query",
+            "https+local://cloudflare-dns.com/dns-query"
         ],
         "clientIp": "${PUBLIC_IP}"
     },
@@ -669,12 +820,18 @@ v2ray_config() {
         }
     ],
     "outbounds": [
-        // first one is the default option
-        // could be omitted in "routing" block below
         {
             "tag": "freedom",
             "protocol": "freedom"
         },
+        {
+            "tag": "blocked",
+            "protocol": "blackhole"
+        },
+EOF
+
+    if [[ "$DEPLOY_CHOICES" == *"$WARP"* ]]; then
+        cat <<- EOF >> ./config/v2ray/config.json
         {
             "tag": "cf-warp",
             "protocol": "socks",
@@ -687,10 +844,31 @@ v2ray_config() {
                 ]
             }
         },
+EOF
+    fi
+
+    if [[ "$ENABLE_SOCKS5" == "true" ]]; then
+        cat <<- EOF >> ./config/v2ray/config.json
         {
-            "tag": "blocked",
-            "protocol": "blackhole"
+            "tag": "socks",
+            "protocol": "socks",
+            "listen": "0.0.0.0",
+            "port": 8005,
+            "settings": {
+                "address": "127.0.0.1",
+                "auth": "password",
+                "accounts": [
+                    {
+                        "user": "${SOCKS5_USER}",
+                        "pass": "${SOCKS5_PASS}"
+                    }
+                ]
+            }
         },
+EOF
+    fi
+
+    cat <<- EOF >> ./config/v2ray/config.json
         {
             "tag": "dns-out",
             "protocol": "dns",
@@ -705,31 +883,43 @@ v2ray_config() {
         "rules": [
             {
                 "type": "field",
-                "inboundTag": [
-                    "dns-in"
-                ],
+                "inboundTag": ["dns-in"],
                 "outboundTag": "dns-out"
             },
             {
-                "outboundTag": "cf-warp",
-                "type": "field",
-                "domain": [
-                    "geosite:openai"
-                ]
-            },
-            {
-                "outboundTag": "blocked",
                 "type": "field",
                 "domain": [
                     "geosite:category-ads-all"
-                ]
+                ],
+                "outboundTag": "blocked"
             },
             {
-                "outboundTag": "blocked",
                 "type": "field",
                 "protocol": [
                     "bittorrent"
-                ]
+                ],
+                "outboundTag": "blocked"
+            },
+EOF
+
+    if [[ "$DEPLOY_CHOICES" == *"$WARP"* ]]; then
+    cat <<- EOF >> ./config/v2ray/config.json
+            {
+                "type": "field",
+                "domain": [
+                    "geosite:openai",
+                    "geosite:reddit"
+                ],
+                "outboundTag": "cf-warp"
+            },
+EOF
+    fi
+
+    cat <<- EOF >> ./config/v2ray/config.json
+            {
+                "type": "field",
+                "inboundTag": ["tcp", "grpc", "quic"],
+                "outboundTag": "freedom"
             }
         ]
     },
@@ -785,28 +975,37 @@ frontend tls-in
     bind :::443 v4v6
 
     tcp-request inspect-delay 5s
-    tcp-request content accept if { req_ssl_hello_type 1 }
+    tcp-request content accept if { req.ssl_hello_type 1 }
+    tcp-request content accept if { req.payload(0,1) -m bin 05 }
+    tcp-request content accept if { req.ssl_sni -i dl.${DOMAIN} }
+    tcp-request content accept if { req.ssl_sni -i prx.${DOMAIN} }
+    tcp-request content accept if !{ req.ssl_sni -m found }
     tcp-request content accept if HTTP
+    tcp-request content reject
 
+    acl is_download req.ssl_sni -i dl.${DOMAIN}
+    acl is_proxy req.ssl_sni -i prx.${DOMAIN}
+    acl is_socks req.payload(0,1) -m bin 05
     acl is_h2 req.ssl_alpn -i h2
     acl is_h1 req.ssl_alpn -i http/1.1
     acl has_sni req.ssl_sni -m found
 
 EOF
 
-    if [[ "$DEPLOY_CHOICES" == *"1"* ]]; then
+    if [[ "$DEPLOY_CHOICES" == *"$V2RAY"* ]]; then
         cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
-    use_backend v2ray_tcp if !is_h1 !is_h2 has_sni
+    use_backend v2ray_tcp if is_proxy !is_h1 !is_h2
 EOF
     fi
 
-    if [[ "$DEPLOY_CHOICES" == *"3"* ]]; then
+    if [[ "$DEPLOY_CHOICES" == *"$OPENVPN"* ]]; then
         cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
-    use_backend openvpn if !is_h1 !is_h2 !has_sni
+    use_backend openvpn if !has_sni !is_h1 !is_h2
 EOF
     fi
 
     cat <<-EOF >> ./config/haproxy/haproxy.tcp.cfg
+    use_backend nginx if is_download
     default_backend nginx
 
 backend nginx
@@ -814,7 +1013,7 @@ backend nginx
 
 EOF
 
-    if [[ "$DEPLOY_CHOICES" == *"1"* ]]; then
+    if [[ "$DEPLOY_CHOICES" == *"$V2RAY"* ]]; then
         cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
 backend v2ray_tcp
     server v2ray v2ray:8001
@@ -822,7 +1021,7 @@ backend v2ray_tcp
 EOF
     fi
 
-    if [[ "$DEPLOY_CHOICES" == *"3"* ]]; then
+    if [[ "$DEPLOY_CHOICES" == *"$OPENVPN"* ]]; then
         cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
 backend openvpn
     server openvpn openvpn:443
@@ -837,7 +1036,7 @@ nginx_config() {
     mkdir -p ./config/www/
     curl -sLo ./config/www/index.html https://raw.githubusercontent.com/PandaRyshan/ladder/main/config/www/index.html
     cat <<- EOF > ./config/nginx/site-confs/default.conf
-## Version 2024/07/16 - https://github.com/linuxserver/docker-swag/blob/master/root/defaults/nginx/site-confs/default.conf.sample
+## Version 2024/12/17 - https://github.com/linuxserver/docker-swag/blob/master/root/defaults/nginx/site-confs/default.conf.sample
 ## Changelog: https://github.com/linuxserver/docker-swag/commits/master/root/defaults/nginx/site-confs/default.conf.sample
 
 server {
@@ -858,12 +1057,28 @@ server {
     include /config/nginx/ssl.conf;
 
     root /config/www;
-    index index.html index.htm index.php;
+    index index.html index.htm;
 
     include /config/nginx/proxy-confs/*.subfolder.conf;
 
     location / {
-        try_files \$uri \$uri/ /index.html /index.htm /index.php\$is_args\$args;
+        try_files \$uri \$uri/ /index.html /index.htm;
+    }
+
+    location /conf {
+        auth_basic "Restricted";
+        auth_basic_user_file /config/nginx/.htpasswd;
+
+        try_files \$uri \$uri/;
+    }
+
+    location /rest/GetUserlogin {
+        auth_basic "Restricted";
+        auth_basic_user_file /config/nginx/.htpasswd;
+
+        alias /config/www/conf/;
+        default_type text/plain;
+        try_files \$remote_user.ovpn =404;
     }
 
     location /${SERVICE_NAME} {
@@ -875,6 +1090,7 @@ server {
             return 404;
         }
 
+        include /config/nginx/proxy.conf;
         client_body_timeout 300s;
         client_max_body_size 0;
         client_body_buffer_size 32k;
@@ -884,34 +1100,21 @@ server {
         grpc_send_timeout 300s;
         grpc_socket_keepalive on;
         grpc_pass grpc://grpc_backend;
-
-        grpc_set_header Connection "";
-        grpc_set_header X-Real-IP \$remote_addr;
-        grpc_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
     }
 EOF
 
-    if [[ "$DEPLOY_CHOICES" == *"4"* ]]; then
+    if [[ "$DEPLOY_CHOICES" == *"$SMOKEPING"* ]]; then
     cat <<- EOF >> ./config/nginx/site-confs/default.conf
 
     location ~* ^/(css|js|cache)/ {
+        include /config/nginx/proxy.conf;
         rewrite ^/(js|css|cache)/(.*)$ /smokeping/\$1/\$2 break;
         proxy_pass http://smokeping:80;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_set_header Connection "";
     }
 
     location /smokeping {
+        include /config/nginx/proxy.conf;
         proxy_pass http://smokeping:80/smokeping/;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        # proxy_http_version 1.1;
-        proxy_set_header Connection "";
     }
 EOF
     fi
@@ -930,7 +1133,6 @@ upstream grpc_backend {
 }
 
 include /config/nginx/proxy-confs/*.subdomain.conf;
-proxy_cache_path cache/ keys_zone=auth_cache:10m;
 EOF
 }
 
@@ -991,6 +1193,7 @@ prepare_workdir() {
     fi
 }
 
+# TODO: optimize output
 output_v2ray_config() {
     max_len=$(echo -e "${DOMAIN}\n${UUID}\n${SERVICE_NAME}" | wc -L)
     {
@@ -998,14 +1201,15 @@ output_v2ray_config() {
         echo "安装脚本已移动至容器配置目录：${pwd}"
         echo "V2Ray 配置："
         printf "+--------------+-%-${max_len}s-+\n" | sed "s/ /-/g"
-        printf "| %-12s | %-${max_len}s |\n" "Domain:" "${DOMAIN}"
-        printf "| %-12s | %-${max_len}s |\n" "Protocol:" "grpc"
+        printf "| %-12s | %-${max_len}s |\n" "Domain:" "prx.${DOMAIN}"
+        printf "| %-12s | %-${max_len}s |\n" "Protocol:" "tcp / tcp"
         printf "| %-12s | %-${max_len}s |\n" "UUID:" "${UUID}"
         printf "| %-12s | %-${max_len}s |\n" "ServiceName:" "${SERVICE_NAME}"
         printf "| %-12s | %-${max_len}s |\n" "TLS:" "Yes"
         printf "+--------------+-%-${max_len}s-+\n" | sed "s/ /-/g"
         echo ""
-        echo "OpenVPN 配置可通过地址 https://${DOMAIN}/client-xxxx.ovpn 的方式下载"
+        echo "OpenVPN 配置可在客户端内通过地址 https://dl.${DOMAIN}/ 导入"
+        echo "或通过地址 https://dl.${DOMAIN}/conf/<your-user-name>.ovpn 下载配置文件"
     } | tee $(pwd)/info.txt
 }
 
@@ -1013,3 +1217,5 @@ output_v2ray_config() {
 check_os_release
 install_missing_packages
 main_menu
+clear
+cat $(pwd)/info.txt

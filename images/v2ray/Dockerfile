@@ -2,7 +2,7 @@ FROM alpine:edge
 
 LABEL maintainer="Hu Xiaohong <xiaohong@pandas.run>"
 
-ENV VERSION="v5.22.0"
+ENV VERSION="v5.26.0"
 ENV ZIPFILE="v2ray-linux-64.zip"
 ENV URL="https://github.com/v2fly/v2ray-core/releases/download/${VERSION}/${ZIPFILE}"
 
