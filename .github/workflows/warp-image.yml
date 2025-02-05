@@ -48,4 +48,4 @@ jobs:
         with:
           context: ./images/v2ray
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/v2ray:latest
+          tags: ghcr.io/${{ env.REPO_OWNER_LOWER }}/v2ray:latest
