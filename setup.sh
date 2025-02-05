@@ -1193,7 +1193,6 @@ prepare_workdir() {
     fi
 }
 
-# TODO: optimize output
 output_v2ray_config() {
     max_len=$(echo -e "${DOMAIN}\n${UUID}\n${SERVICE_NAME}" | wc -L)
     {
