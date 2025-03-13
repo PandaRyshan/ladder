@@ -102,7 +102,11 @@ EOF
                 echo ""
                 echo "用户 $USERNAME 添加成功"
                 echo "UUID: $new_user_uuid"
-                echo "OVPN配置下载: https://$DL_DOMAIN/rest/GetUserlogin"
+                if [[ -n "$DL_DOMAIN" ]]; then
+                    echo "OpenVPN 配置导入/下载: https://$DL_DOMAIN/rest/GetUserlogin"
+                else
+                    echo "OpenVPN 配置下载: https://${PRX_DOMAIN}/conf/<your-user-name>.ovpn"
+                fi
             } | dialog --title "创建用户..." --programbox 20 70
             break
         fi
@@ -957,14 +961,27 @@ frontend tls-in
     tcp-request inspect-delay 5s
     tcp-request content accept if { req.ssl_hello_type 1 }
     tcp-request content accept if { req.payload(0,1) -m bin 05 }
+EOF
 
+    if [[ -n "$DL_DOMAIN" ]]; then
+        cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
     tcp-request content accept if { req.ssl_sni -i ${DL_DOMAIN} }
+EOF
+    fi
+
+    cat <<- EOF > ./config/haproxy/haproxy.tcp.cfg
     tcp-request content accept if { req.ssl_sni -i ${PRX_DOMAIN} }
     tcp-request content accept if !{ req.ssl_sni -m found }
-    tcp-request content accept if HTTP
     tcp-request content reject
+EOF
 
+    if [[ -n "$DL_DOMAIN" ]]; then
+        cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
     acl is_download req.ssl_sni -i ${DL_DOMAIN}
+EOF
+    fi
+
+    cat <<- EOF > ./config/haproxy/haproxy.tcp.cfg
     acl is_proxy req.ssl_sni -i ${PRX_DOMAIN}
     acl is_socks req.payload(0,1) -m bin 05
     acl is_h2 req.ssl_alpn -i h2
@@ -1188,8 +1205,11 @@ output_v2ray_config() {
         printf "| %-12s | %-${max_len}s |\n" "TLS:" "Yes"
         printf "+--------------+-%-${max_len}s-+\n" | sed "s/ /-/g"
         echo ""
-        echo "OpenVPN 配置可在客户端内通过地址 https://${DL_DOMAIN}/ 导入"
-        echo "或通过地址 https://${DL_DOMAIN}/conf/<your-user-name>.ovpn 下载配置文件"
+        if [[ -n "$DL_DOMAIN" ]]; then
+            echo "OpenVPN 配置导入/下载地址 https://${DL_DOMAIN}/rest/GetUserlogin 导入"
+        else
+            echo "OpenVPN 配置下载: https://${PRX_DOMAIN}/conf/<your-user-name>.ovpn"
+        fi
     } | tee $(pwd)/info.txt
 }
 
