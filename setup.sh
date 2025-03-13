@@ -154,9 +154,9 @@ v2ray_config_menu() {
             --title "环境配置" \
             --extra-button --extra-label "Previous" \
             --mixedform "请输入环境配置信息：" 15 60 5 \
-            "Timezone:" 1 1 "$TIMEZONE" 1 13 40 40 0 \
-            "Proxy Domain:" 2 1 "$PRX_DOMAIN" 2 13 40 40 0 \
-            "Download Domain:" 2 1 "$DL_DOMAIN" 2 13 40 40 0
+            "Timezone:" 1 1 "$TIMEZONE" 1 15 40 40 0 \
+            "Proxy Domain:" 2 1 "$PRX_DOMAIN" 2 15 40 40 0 \
+            "DL Domain:" 3 1 "$DL_DOMAIN" 3 15 40 40 0
         )
 
         result=$(dialog "${dialog_args[@]}" 3>&1 1>&2 2>&3)
