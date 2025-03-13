@@ -975,12 +975,6 @@ EOF
     tcp-request content reject
 EOF
 
-    if [[ -n "$DL_DOMAIN" ]]; then
-        cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
-    acl is_download req.ssl_sni -i ${DL_DOMAIN}
-EOF
-    fi
-
     cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
     acl is_proxy req.ssl_sni -i ${PRX_DOMAIN}
     acl is_socks req.payload(0,1) -m bin 05
@@ -1003,7 +997,6 @@ EOF
     fi
 
     cat <<-EOF >> ./config/haproxy/haproxy.tcp.cfg
-    use_backend nginx if is_download
     default_backend nginx
 
 backend nginx
