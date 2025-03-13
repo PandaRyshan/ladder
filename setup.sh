@@ -981,7 +981,7 @@ EOF
 EOF
     fi
 
-    cat <<- EOF > ./config/haproxy/haproxy.tcp.cfg
+    cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
     acl is_proxy req.ssl_sni -i ${PRX_DOMAIN}
     acl is_socks req.payload(0,1) -m bin 05
     acl is_h2 req.ssl_alpn -i h2
