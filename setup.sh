@@ -179,7 +179,7 @@ v2ray_config_menu() {
         fi
     done
     while true; do
-        dialog --yesno "是否启用 socks5?" 7 50
+        dialog --defaultno --yesno "是否启用 socks5?" 7 50
         if [ $? -eq 0 ]; then
             ENABLE_SOCKS5="true"
             dialog_args=(
