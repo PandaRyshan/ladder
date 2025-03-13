@@ -1192,7 +1192,7 @@ output_v2ray_config() {
         echo "V2Ray 配置："
         printf "+--------------+-%-${max_len}s-+\n" | sed "s/ /-/g"
         printf "| %-12s | %-${max_len}s |\n" "Domain:" "${PRX_DOMAIN}"
-        printf "| %-12s | %-${max_len}s |\n" "Protocol:" "tcp / tcp"
+        printf "| %-12s | %-${max_len}s |\n" "Protocol:" "tcp / grpc"
         printf "| %-12s | %-${max_len}s |\n" "UUID:" "${UUID}"
         printf "| %-12s | %-${max_len}s |\n" "ServiceName:" "${SERVICE_NAME}"
         printf "| %-12s | %-${max_len}s |\n" "TLS:" "Yes"
