@@ -98,11 +98,11 @@ EOF
                 mv ./config/v2ray/config.json.tmp ./config/v2ray/config.json
                 echo "重启 V2Ray 服务 Restarting V2Ray service..."
                 docker compose restart v2ray 2>&1
-                DOMAIN=$(cat .env | grep DOMAIN | cut -d '=' -f2)
+                DL_DOMAIN=$(cat .env | grep DL_DOMAIN | cut -d '=' -f2)
                 echo ""
                 echo "用户 $USERNAME 添加成功"
                 echo "UUID: $new_user_uuid"
-                echo "OVPN配置下载: https://$DOMAIN/rest/GetUserlogin"
+                echo "OVPN配置下载: https://$DL_DOMAIN/rest/GetUserlogin"
             } | dialog --title "创建用户..." --programbox 20 70
             break
         fi
@@ -146,7 +146,8 @@ deploy_menu() {
 
 v2ray_config_menu() {
     TIMEZONE=${1:-"Asia/Shanghai"}
-    DOMAIN=${2:-""}
+    PRX_DOMAIN=${2:-""}
+    DL_DOMAIN=${3:-""}
 
     while true; do
         dialog_args=(
@@ -154,7 +155,8 @@ v2ray_config_menu() {
             --extra-button --extra-label "Previous" \
             --mixedform "请输入环境配置信息：" 15 60 5 \
             "Timezone:" 1 1 "$TIMEZONE" 1 13 40 40 0 \
-            "Domain:" 2 1 "$DOMAIN" 2 13 40 40 0
+            "Proxy Domain:" 2 1 "$PRX_DOMAIN" 2 13 40 40 0 \
+            "Download Domain:" 2 1 "$DL_DOMAIN" 2 13 40 40 0
         )
 
         result=$(dialog "${dialog_args[@]}" 3>&1 1>&2 2>&3)
@@ -163,10 +165,11 @@ v2ray_config_menu() {
         exit_operation $exit_status
 
         TIMEZONE=$(sed -n '1p' <<< $result)
-        DOMAIN=$(sed -n '2p' <<< $result)
+        PRX_DOMAIN=$(sed -n '2p' <<< $result)
+        DL_DOMAIN=$(sed -n '3p' <<< $result)
 
-        if [ -z "$TIMEZONE" ] || [ -z "$DOMAIN" ]; then
-            dialog --msgbox "所有信息均为必填，请继续输入。" 7 50
+        if [ -z "$TIMEZONE" ] || [ -z "$PRX_DOMAIN" ]; then
+            dialog --msgbox "时区和代理域名必须填写。" 7 50
         else
             break
         fi
@@ -534,9 +537,8 @@ EOF
 env_config() {
     cat <<- EOF > .env
 TIMEZONE=${TIMEZONE}
-DOMAIN=${DOMAIN}
-SUB_PRX=prx
-SUB_DL=dl
+PRX_DOMAIN=${PRX_DOMAIN}
+DL_DOMAIN=${DL_DOMAIN}
 
 # warp plus key
 WARP_KEY=${WARP_KEY}
@@ -568,7 +570,7 @@ services:
     container_name: haproxy_tcp
     volumes:
       - ./config/haproxy/haproxy.tcp.cfg:/usr/local/etc/haproxy/haproxy.cfg
-      - ./config/certs/live/\${SUB_PRX}.\${DOMAIN}:/etc/ssl/certs
+      - ./config/certs/live/\${PRX_DOMAIN}:/etc/ssl/certs
     networks:
       - ipv6
     ports:
@@ -584,9 +586,8 @@ services:
       - PUID=99
       - PGID=99
       - TZ=\${TIMEZONE}
-      - URL=\${DOMAIN}
-      - SUBDOMAINS=\${SUB_PRX},\${SUB_DL}
-      - ONLY_SUBDOMAINS=true
+      - URL=\${PRX_DOMAIN}
+      - EXTRA_DOMAINS=\${DL_DOMAIN}
       - VALIDATION=http
       - EMAIL=\${EMAIL}
     volumes:
@@ -611,7 +612,7 @@ EOF
     volumes:
       - ./config/v2ray/config.json:/etc/v2ray/config.json
       - ./config/geodata:/usr/share/v2ray
-      - ./config/certs/live/\${SUB_PRX}.\${DOMAIN}:/etc/ssl/certs/v2ray
+      - ./config/certs/live/\${PRX_DOMAIN}:/etc/ssl/certs/v2ray
     networks:
       - ipv6
     restart: unless-stopped
@@ -641,7 +642,7 @@ EOF
     image: ghcr.io/pandaryshan/openvpn:latest
     container_name: openvpn
     environment:
-      - DOMAIN=\${SUB_PRX}.\${DOMAIN}
+      - DOMAIN=\${PRX_DOMAIN}
     volumes:
       - ./config/openvpn:/etc/openvpn
     devices:
@@ -716,10 +717,13 @@ v2ray_config() {
             "geosite:category-ads-all": "127.0.0.1"
         },
         "servers": [
+            // All DNS servers only available in IPIfNonMatch mode.
+            // If you need DoH. Uncomment the following lines.
+            //"https+local://dns.google/dns-query",
+            //"https+local://1.1.1.1/dns-query"
             "8.8.8.8",
             "1.1.1.1",
-            "https+local://dns.google/dns-query",
-            "https+local://cloudflare-dns.com/dns-query"
+            "localhost"
         ],
         "clientIp": "${PUBLIC_IP}"
     },
@@ -806,28 +810,9 @@ v2ray_config() {
                     }
                 }
             }
-        },
-        {
-            "tag": "dns-in",
-            "protocol": "dokodemo-door",
-            "port": 53,
-            "settings": {
-                "address": "1.1.1.1",
-                "port": 53,
-                "network": "tcp,udp",
-                "userLevel": 1
-            }
         }
     ],
     "outbounds": [
-        {
-            "tag": "freedom",
-            "protocol": "freedom"
-        },
-        {
-            "tag": "blocked",
-            "protocol": "blackhole"
-        },
 EOF
 
     if [[ "$DEPLOY_CHOICES" == *"$WARP"* ]]; then
@@ -870,22 +855,18 @@ EOF
 
     cat <<- EOF >> ./config/v2ray/config.json
         {
-            "tag": "dns-out",
-            "protocol": "dns",
-            "proxySettings": {
-                "tag": "remote-proxy-out"
-            }
+            "tag": "blocked",
+            "protocol": "blackhole"
+        },
+        {
+            "tag": "freedom",
+            "protocol": "freedom"
         }
     ],
     "routing": {
         "domainStrategy": "AsIs",
         "domainMatcher": "mph",
         "rules": [
-            {
-                "type": "field",
-                "inboundTag": ["dns-in"],
-                "outboundTag": "dns-out"
-            },
             {
                 "type": "field",
                 "domain": [
@@ -907,7 +888,6 @@ EOF
             {
                 "type": "field",
                 "domain": [
-                    "geosite:openai",
                     "geosite:reddit"
                 ],
                 "outboundTag": "cf-warp"
@@ -977,14 +957,15 @@ frontend tls-in
     tcp-request inspect-delay 5s
     tcp-request content accept if { req.ssl_hello_type 1 }
     tcp-request content accept if { req.payload(0,1) -m bin 05 }
-    tcp-request content accept if { req.ssl_sni -i dl.${DOMAIN} }
-    tcp-request content accept if { req.ssl_sni -i prx.${DOMAIN} }
+
+    tcp-request content accept if { req.ssl_sni -i ${DL_DOMAIN} }
+    tcp-request content accept if { req.ssl_sni -i ${PRX_DOMAIN} }
     tcp-request content accept if !{ req.ssl_sni -m found }
     tcp-request content accept if HTTP
     tcp-request content reject
 
-    acl is_download req.ssl_sni -i dl.${DOMAIN}
-    acl is_proxy req.ssl_sni -i prx.${DOMAIN}
+    acl is_download req.ssl_sni -i ${DL_DOMAIN}
+    acl is_proxy req.ssl_sni -i ${PRX_DOMAIN}
     acl is_socks req.payload(0,1) -m bin 05
     acl is_h2 req.ssl_alpn -i h2
     acl is_h1 req.ssl_alpn -i http/1.1
@@ -1194,21 +1175,21 @@ prepare_workdir() {
 }
 
 output_v2ray_config() {
-    max_len=$(echo -e "${DOMAIN}\n${UUID}\n${SERVICE_NAME}" | wc -L)
+    max_len=$(echo -e "${PRX_DOMAIN}\n${UUID}\n${SERVICE_NAME}" | wc -L)
     {
         echo ""
         echo "安装脚本已移动至容器配置目录：${pwd}"
         echo "V2Ray 配置："
         printf "+--------------+-%-${max_len}s-+\n" | sed "s/ /-/g"
-        printf "| %-12s | %-${max_len}s |\n" "Domain:" "prx.${DOMAIN}"
+        printf "| %-12s | %-${max_len}s |\n" "Domain:" "${PRX_DOMAIN}"
         printf "| %-12s | %-${max_len}s |\n" "Protocol:" "tcp / tcp"
         printf "| %-12s | %-${max_len}s |\n" "UUID:" "${UUID}"
         printf "| %-12s | %-${max_len}s |\n" "ServiceName:" "${SERVICE_NAME}"
         printf "| %-12s | %-${max_len}s |\n" "TLS:" "Yes"
         printf "+--------------+-%-${max_len}s-+\n" | sed "s/ /-/g"
         echo ""
-        echo "OpenVPN 配置可在客户端内通过地址 https://dl.${DOMAIN}/ 导入"
-        echo "或通过地址 https://dl.${DOMAIN}/conf/<your-user-name>.ovpn 下载配置文件"
+        echo "OpenVPN 配置可在客户端内通过地址 https://${DL_DOMAIN}/ 导入"
+        echo "或通过地址 https://${DL_DOMAIN}/conf/<your-user-name>.ovpn 下载配置文件"
     } | tee $(pwd)/info.txt
 }
 
