@@ -969,7 +969,7 @@ EOF
 EOF
     fi
 
-    cat <<- EOF > ./config/haproxy/haproxy.tcp.cfg
+    cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
     tcp-request content accept if { req.ssl_sni -i ${PRX_DOMAIN} }
     tcp-request content accept if !{ req.ssl_sni -m found }
     tcp-request content reject
