@@ -14,7 +14,7 @@
 
 * 512MB RAM
 * Ubuntu / Debian / Arch / Fedora / CentOS
-* 拥有一个域名，并解析 `prx` 和 `dl` 两个子域名到自己 VPS 的 IP，也可以使用通配符 `*`，如 `*.us.example.com`
+* 拥有一个域名，并解析到服务器 IP
 * 确保 VPS 的 80 和 443 端口是开放的
 
 ## 用法
@@ -117,3 +117,4 @@ V2Ray 配置在 ladder 目录下的 info.txt 内，可以使用 `cat` 命令查�
 ## Todo
 
 * [ ] add help
+* [ ] add user mgmt gui
