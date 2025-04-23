@@ -724,10 +724,6 @@ v2ray_config() {
             "geosite:category-ads-all": "127.0.0.1"
         },
         "servers": [
-            // All DNS servers only available in IPIfNonMatch mode.
-            // If you need DoH. Uncomment the following lines.
-            //"https+local://dns.google/dns-query",
-            //"https+local://1.1.1.1/dns-query"
             "8.8.8.8",
             "1.1.1.1",
             "localhost"
