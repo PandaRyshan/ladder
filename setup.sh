@@ -98,7 +98,7 @@ EOF
                 mv ./config/v2ray/config.json.tmp ./config/v2ray/config.json
                 echo "重启 V2Ray 服务 Restarting V2Ray service..."
                 docker compose restart v2ray 2>&1
-                CFG_DOMAIN=$(cat .env | grep DL_DOMAIN | cut -d '=' -f2)
+                CFG_DOMAIN=$(cat .env | grep CFG_DOMAIN | cut -d '=' -f2)
                 echo ""
                 echo "用户 $USERNAME 添加成功"
                 echo "UUID: $new_user_uuid"
@@ -545,7 +545,7 @@ env_config() {
     cat <<- EOF > .env
 TIMEZONE=${TIMEZONE}
 PRX_DOMAIN=${PRX_DOMAIN}
-CFG_DOMAIN=${DL_DOMAIN}
+CFG_DOMAIN=${CFG_DOMAIN}
 
 # warp plus key
 WARP_KEY=${WARP_KEY}
