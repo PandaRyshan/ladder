@@ -65,8 +65,8 @@ add_user() {
         dialog_args=(
             --title "添加用户" \
             --mixedform "用户名与密码：" 15 60 5 \
-            "Username:" 1 1 "$USERNAME" 1 13 40 40 0 \
-            "Password:" 2 1 "$PASSWORD" 2 13 40 40 0
+            "用户:" 1 1 "$USERNAME" 1 13 40 40 0 \
+            "密码:" 2 1 "$PASSWORD" 2 13 40 40 0
         )
 
         result=$(dialog "${dialog_args[@]}" 3>&1 1>&2 2>&3)
@@ -158,9 +158,9 @@ v2ray_config_menu() {
             --title "环境配置" \
             --extra-button --extra-label "Previous" \
             --mixedform "请输入环境配置信息：" 15 60 5 \
-            "Timezone:" 1 1 "$TIMEZONE" 1 15 40 40 0 \
-            "Proxy Domain:" 2 1 "$PRX_DOMAIN" 2 15 40 40 0 \
-            "DL Domain:" 3 1 "$CFG_DOMAIN" 3 15 40 40 0
+            "时区:" 1 1 "$TIMEZONE" 1 11 40 40 0 \
+            "代理域名:" 2 1 "$PRX_DOMAIN" 2 11 40 40 0 \
+            "配置域名:" 3 1 "$CFG_DOMAIN" 3 11 40 40 0
         )
 
         result=$(dialog "${dialog_args[@]}" 3>&1 1>&2 2>&3)
@@ -186,8 +186,8 @@ v2ray_config_menu() {
                 --title "SOCKS5 配置" \
                 --extra-button --extra-label "Previous" \
                 --mixedform "请输入 SOCKS5 认证信息：" 15 60 5 \
-                "User:" 1 1 "" 1 13 40 40 0 \
-                "Password:" 2 1 "" 2 13 40 40 0
+                "用户:" 1 1 "" 1 10 40 40 0 \
+                "密码:" 2 1 "" 2 10 40 40 0
             )
             result=$(dialog "${dialog_args[@]}" 3>&1 1>&2 2>&3)
             SOCKS5_USER=$(sed -n '1p' <<< $result)
@@ -212,7 +212,7 @@ warp_config_menu() {
             --title "Warp 配置" \
             --extra-button --extra-label "Previous" \
             --mixedform "请输入环境配置信息：" 15 60 5 \
-            "Warp Key:" 1 1 "$WARP_KEY" 1 13 40 40 0
+            "Warp 密钥:" 1 1 "$WARP_KEY" 1 12 40 40 0
         )
         result=$(dialog "${dialog_args[@]}" 3>&1 1>&2 2>&3)
         exit_status=$?
@@ -230,9 +230,9 @@ smokeping_config_menu() {
             --title "Smokeping 配置" \
             --extra-button --extra-label "Previous" \
             --mixedform "请输入环境配置信息：" 15 60 5 \
-            "Host Name:" 1 1 "$HOST_NAME" 1 15 40 40 0 \
-            "Master URL:" 2 1 "$MASTER_URL" 2 15 40 40 0 \
-            "Shared Secret:" 3 1 "$SHARED_SECRET" 3 15 40 40 0
+            "本地主机名:" 1 1 "$HOST_NAME" 1 14 40 40 0 \
+            "Master 地址:" 2 1 "$MASTER_URL" 2 14 40 40 0 \
+            "Master 密钥:" 3 1 "$SHARED_SECRET" 3 14 40 40 0
         )
         result=$(dialog "${dialog_args[@]}" 3>&1 1>&2 2>&3)
         exit_status=$?
@@ -252,11 +252,14 @@ sysctl_menu() {
             --yesno "是否优化 sysctl.conf?" 7 50
 
         exit_status=$?
-        exit_operation $exit_status
+        if [ $exit_status -eq 3 ] || [ $exit_status -eq 255 ]; then
+            exit_operation $exit_status
+        else
+            SYSCTL_OPTIMIZE=$exit_status
+        fi
 
         dialog --yesno "确认开始部署？" 7 50
         if [ $? -eq 0 ]; then
-            SYSCTL_OPTIMIZE=$exit_status
             deploy
             break
         fi
