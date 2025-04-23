@@ -98,12 +98,12 @@ EOF
                 mv ./config/v2ray/config.json.tmp ./config/v2ray/config.json
                 echo "重启 V2Ray 服务 Restarting V2Ray service..."
                 docker compose restart v2ray 2>&1
-                DL_DOMAIN=$(cat .env | grep DL_DOMAIN | cut -d '=' -f2)
+                CONF_DOMAIN=$(cat .env | grep DL_DOMAIN | cut -d '=' -f2)
                 echo ""
                 echo "用户 $USERNAME 添加成功"
                 echo "UUID: $new_user_uuid"
-                if [[ -n "$DL_DOMAIN" ]]; then
-                    echo "OpenVPN 配置导入/下载: https://$DL_DOMAIN/rest/GetUserlogin"
+                if [[ -n "$CONF_DOMAIN" ]]; then
+                    echo "OpenVPN 配置导入/下载: https://$CONF_DOMAIN/rest/GetUserlogin"
                 else
                     echo "OpenVPN 配置下载: https://${PRX_DOMAIN}/conf/<your-user-name>.ovpn"
                 fi
@@ -151,7 +151,7 @@ deploy_menu() {
 v2ray_config_menu() {
     TIMEZONE=${1:-"Asia/Shanghai"}
     PRX_DOMAIN=${2:-""}
-    DL_DOMAIN=${3:-""}
+    CONF_DOMAIN=${3:-""}
 
     while true; do
         dialog_args=(
@@ -160,7 +160,7 @@ v2ray_config_menu() {
             --mixedform "请输入环境配置信息：" 15 60 5 \
             "Timezone:" 1 1 "$TIMEZONE" 1 15 40 40 0 \
             "Proxy Domain:" 2 1 "$PRX_DOMAIN" 2 15 40 40 0 \
-            "DL Domain:" 3 1 "$DL_DOMAIN" 3 15 40 40 0
+            "DL Domain:" 3 1 "$CONF_DOMAIN" 3 15 40 40 0
         )
 
         result=$(dialog "${dialog_args[@]}" 3>&1 1>&2 2>&3)
@@ -170,7 +170,7 @@ v2ray_config_menu() {
 
         TIMEZONE=$(sed -n '1p' <<< $result)
         PRX_DOMAIN=$(sed -n '2p' <<< $result)
-        DL_DOMAIN=$(sed -n '3p' <<< $result)
+        CONF_DOMAIN=$(sed -n '3p' <<< $result)
 
         if [ -z "$TIMEZONE" ] || [ -z "$PRX_DOMAIN" ]; then
             dialog --msgbox "时区和代理域名必须填写。" 7 50
@@ -542,7 +542,7 @@ env_config() {
     cat <<- EOF > .env
 TIMEZONE=${TIMEZONE}
 PRX_DOMAIN=${PRX_DOMAIN}
-DL_DOMAIN=${DL_DOMAIN}
+CONF_DOMAIN=${DL_DOMAIN}
 
 # warp plus key
 WARP_KEY=${WARP_KEY}
@@ -591,7 +591,7 @@ services:
       - PGID=99
       - TZ=\${TIMEZONE}
       - URL=\${PRX_DOMAIN}
-      - EXTRA_DOMAINS=\${DL_DOMAIN}
+      - EXTRA_DOMAINS=\${CONF_DOMAIN}
       - VALIDATION=http
       - EMAIL=\${EMAIL}
     volumes:
@@ -963,9 +963,9 @@ frontend tls-in
     tcp-request content accept if { req.payload(0,1) -m bin 05 }
 EOF
 
-    if [[ -n "$DL_DOMAIN" ]]; then
+    if [[ -n "$CONF_DOMAIN" ]]; then
         cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
-    tcp-request content accept if { req.ssl_sni -i ${DL_DOMAIN} }
+    tcp-request content accept if { req.ssl_sni -i ${CONF_DOMAIN} }
 EOF
     fi
 
@@ -973,7 +973,14 @@ EOF
     tcp-request content accept if { req.ssl_sni -i ${PRX_DOMAIN} }
     tcp-request content accept if !{ req.ssl_sni -m found }
     tcp-request content reject
+
 EOF
+
+    if [[ -n "$CONF_DOMAIN" ]]; then
+        cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
+    acl is_config req.ssl_sni -i ${CONF_DOMAIN}
+EOF
+    fi
 
     cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
     acl is_proxy req.ssl_sni -i ${PRX_DOMAIN}
@@ -993,6 +1000,12 @@ EOF
     if [[ "$DEPLOY_CHOICES" == *"$OPENVPN"* ]]; then
         cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
     use_backend openvpn if !has_sni !is_h1 !is_h2
+EOF
+    fi
+
+    if [[ -n "$CONF_DOMAIN" ]]; then
+        cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
+    use_backend nginx if is_config
 EOF
     fi
 
@@ -1198,8 +1211,8 @@ output_v2ray_config() {
         printf "| %-12s | %-${max_len}s |\n" "TLS:" "Yes"
         printf "+--------------+-%-${max_len}s-+\n" | sed "s/ /-/g"
         echo ""
-        if [[ -n "$DL_DOMAIN" ]]; then
-            echo "OpenVPN 配置导入/下载地址 https://${DL_DOMAIN}/rest/GetUserlogin 导入"
+        if [[ -n "$CONF_DOMAIN" ]]; then
+            echo "OpenVPN 配置导入/下载地址 https://${CONF_DOMAIN}/rest/GetUserlogin 导入"
         else
             echo "OpenVPN 配置下载: https://${PRX_DOMAIN}/conf/<your-user-name>.ovpn"
         fi
