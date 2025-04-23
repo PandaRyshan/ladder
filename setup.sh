@@ -358,7 +358,10 @@ check_os_release() {
 }
 
 install_missing_packages() {
-    if ! command -v dialog &> /dev/null || ! command -v uuidgen &> /dev/null
+    if ! command -v dialog &> /dev/null \
+        || ! command -v uuidgen &> /dev/null \
+        || ! command -v expect &> /dev/null \
+        || ! command -v jq &> /dev/null
     then
         echo "安装 dialog"
         if [[ "${OS,,}" == *"debian"* ]] || [[ "${OS,,}" == *"ubuntu"* ]]; then
