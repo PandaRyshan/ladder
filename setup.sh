@@ -227,7 +227,7 @@ smokeping_config_menu() {
     SHARED_SECRET=${1:-""}
     if [[ $DEPLOY_CHOICES == *"$SMOKEPING"* ]]; then
         dialog_args=(
-            --title "Warp 配置" \
+            --title "Smokeping 配置" \
             --extra-button --extra-label "Previous" \
             --mixedform "请输入环境配置信息：" 15 60 5 \
             "Host Name:" 1 1 "$HOST_NAME" 1 15 40 40 0 \
