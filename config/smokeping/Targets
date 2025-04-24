@@ -35,7 +35,7 @@ host = 218.104.78.2
 ++ HefeiTelecom
 menu = 合肥电信
 title = 合肥电信
-host = 61.190.2.2
+host = 61.132.163.68
 
 ++ HefeiMobile
 menu = 合肥移动
@@ -50,7 +50,7 @@ host = 124.152.99.1
 ++ LanzhouTelecom
 menu = 兰州电信
 title = 兰州电信
-host = 60.165.116.49
+host = 202.100.64.66
 
 ++ LanzhouMobile
 menu = 兰州移动
@@ -65,12 +65,12 @@ host = 221.5.88.88
 ++ GuangzhouTelecom
 menu = 广州电信
 title = 广州电信
-host = 202.96.128.86
+host = 202.96.128.143
 
 ++ GuangzhouMobile
 menu = 广州移动
 title = 广州移动
-host = 120.240.116.240
+host = 211.136.192.6
 
 + InternetSites
 
