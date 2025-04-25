@@ -92,9 +92,15 @@ EOF
                 docker compose exec openvpn clientgen $USERNAME 2>&1
                 cp ./config/openvpn/clients/$USERNAME.ovpn ./config/www/conf/
                 UUID=$(uuidgen)
-                yq --arg new_user_uuid "$UUID" '
-                    .inbounds[].settings.clients += [{"id": $new_user_uuid}]
-                ' ./config/v2ray/config.json -iy
+                if [ -f ./config/v2ray/config.yaml ]; then
+                    yq -iy --arg new_user_uuid "$UUID" '
+                        .inbounds[].settings.clients += [{"id": $new_user_uuid}]
+                    ' ./config/v2ray/config.yaml
+                else
+                    yq -ij --arg new_user_uuid "$UUID" '
+                        .inbounds[].settings.clients += [{"id": $new_user_uuid}]
+                    ' ./config/v2ray/config.json
+                fi
                 echo "重启 V2Ray 服务 Restarting V2Ray service..."
                 docker compose restart v2ray 2>&1
                 CFG_DOMAIN=$(cat .env | grep CFG_DOMAIN | cut -d '=' -f2)
@@ -106,9 +112,8 @@ EOF
                 else
                     echo "OpenVPN 配置下载: https://${PRX_DOMAIN}/conf/<your-user-name>.ovpn"
                 fi
+                echo "$USERNAME:$PASSWORD:$UUID" >> users.txt
             } | dialog --title "创建用户..." --programbox 20 70
-
-            echo "$USERNAME:$PASSWORD:$UUID" >> users.txt
             break
         fi
     done
@@ -116,11 +121,10 @@ EOF
 
 del_user() {
     USERNAMES=$(awk -F: '{print $1}' users.txt)
-    items=(
-        "xiaohong" "" off
-        "xiaobai" "" off
-        "yaya" "" off
-    )
+    items=()
+    for USERNAME in $USERNAMES; do
+        items+=("$USERNAME" "" off)
+    done
     while true; do
         CHOICES=$(dialog --clear \
             --title "删除用户" \
