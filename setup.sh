@@ -115,12 +115,12 @@ EOF
 }
 
 del_user() {
-    USERNAMES=$(awk -F: '{print $1}' users.txt)
-    items=()
-    for USERNAME in $USERNAMES; do
-        items+=("$USERNAME" "" off)
-    done
     while true; do
+        USERNAMES=$(awk -F: '{print $1}' users.txt)
+        items=()
+        for USERNAME in $USERNAMES; do
+            items+=("$USERNAME" "" off)
+        done
         CHOICES=$(dialog --clear \
             --title "删除用户" \
             --extra-button --extra-label "Previous" \
