@@ -92,15 +92,10 @@ EOF
                 docker compose exec openvpn clientgen $USERNAME 2>&1
                 cp ./config/openvpn/clients/$USERNAME.ovpn ./config/www/conf/
                 UUID=$(uuidgen)
-                if [ -f ./config/v2ray/config.yaml ]; then
-                    yq -iy --arg new_user_uuid "$UUID" '
-                        .inbounds[].settings.clients += [{"id": $new_user_uuid}]
-                    ' ./config/v2ray/config.yaml
-                else
-                    yq -ij --arg new_user_uuid "$UUID" '
-                        .inbounds[].settings.clients += [{"id": $new_user_uuid}]
-                    ' ./config/v2ray/config.json
-                fi
+                jq --arg new_user_uuid "$UUID" \
+                    '.inbounds[].settings.clients += [{"id": $new_user_uuid}]' \
+                    ./config/v2ray/config.json > ./config/v2ray/config.json.tmp
+                mv ./config/v2ray/config.json.tmp ./config/v2ray/config.json
                 echo "重启 V2Ray 服务 Restarting V2Ray service..."
                 docker compose restart v2ray 2>&1
                 CFG_DOMAIN=$(cat .env | grep CFG_DOMAIN | cut -d '=' -f2)
@@ -148,7 +143,7 @@ del_user() {
                         docker compose exec openvpn clientrevoke $choice 2>&1
                         UUID=$(grep -w "$choice" users.txt | cut -d ':' -f3)
                         # yq --arg user "$UUID" 'del(.inbounds[].settings.clients[] | select(.id == $user))' ./config/v2ray/config.yaml -iy
-                        yq --arg user "$UUID" '.inbounds[].settings.clients -= [{"id": $user}]' ./config/v2ray/config.json -iy
+                        yq -iy --indent 4 --arg user "$UUID" '.inbounds[].settings.clients -= [{"id": $user}]' ./config/v2ray/config.json -iy
                         sed -i "/$choice/d" users.txt
                     done
                 } | dialog --title "正在部署... Deploying..." --programbox 30 100
@@ -663,7 +658,7 @@ EOF
     environment:
       - WAIT_PATHS=/etc/ssl/certs/v2ray/priv-fullchain-bundle.pem
     volumes:
-      - ./config/v2ray/config.yaml:/etc/v2ray/config.yaml
+      - ./config/v2ray/config.json:/etc/v2ray/config.json
       - ./config/geodata:/usr/share/v2ray
       - ./config/certs/live/\${PRX_DOMAIN}:/etc/ssl/certs/v2ray
     networks:
@@ -760,145 +755,218 @@ v2ray_config() {
     fi
     UUID=$(uuidgen)
     SERVICE_NAME=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
-    cat <<- EOF > ./config/v2ray/config.yaml
-log:
-  loglevel: warning
-dns:
-  hosts:
-    geosite:category-ads-all: 127.0.0.1
-  servers:
-    - 8.8.8.8
-    - 1.1.1.1
-    - localhost
-  clientIp: ${PUBLIC_IP}
-inbounds:
-  - tag: tcp
-    protocol: vmess
-    listen: 0.0.0.0
-    port: 8001
-    settings:
-      clients:
-        - id: ${UUID}
-    streamSettings:
-      network: tcp
-      security: tls
-      tlsSettings:
-        certificates:
-          - certificateFile: /etc/ssl/certs/v2ray/priv-fullchain-bundle.pem
-            keyFile: /etc/ssl/certs/v2ray/priv-fullchain-bundle.pem
-  - tag: h2
-    protocol: vmess
-    listen: 0.0.0.0
-    port: 8002
-    settings:
-      clients:
-        - id: ${UUID}
-    streamSettings:
-      network: h2
-  - tag: grpc
-    protocol: vmess
-    listen: 0.0.0.0
-    port: 8003
-    settings:
-      clients:
-        - id: ${UUID}
-    streamSettings:
-      network: grpc
-      grpcSettings:
-        serviceName: ${SERVICE_NAME}
-  - tag: quic
-    protocol: vmess
-    listen: 0.0.0.0
-    port: 8004
-    settings:
-      clients:
-        - id: ${UUID}
-    streamSettings:
-      network: quic
-      quicSettings:
-        security: chacha20-poly1305
-        key: ""
-        header:
-          type: none
-outbounds:
-  - tag: freedom
-    protocol: freedom
-  - tag: blocked
-    protocol: blackhole
+    cat <<- EOF > ./config/v2ray/config.json
+{
+    "log": {
+        "loglevel": "warning"
+    },
+    "dns": {
+        "hosts": {
+            "geosite:category-ads-all": "127.0.0.1"
+        },
+        "servers": [
+            "8.8.8.8",
+            "1.1.1.1",
+            "localhost"
+        ],
+        "clientIp": "${PUBLIC_IP}"
+    },
+    "inbounds": [
+        {
+            "tag": "tcp",
+            "protocol": "vmess",
+            "listen": "0.0.0.0",
+            "port": 8001,
+            "settings": {
+                "clients": [
+                    {
+                        "id": "${UUID}"
+                    }
+                ]
+            },
+            "streamSettings": {
+                "network": "tcp",
+                "security": "tls",
+                "tlsSettings": {
+                    "certificates": [
+                        {
+                            "certificateFile": "/etc/ssl/certs/v2ray/priv-fullchain-bundle.pem",
+                            "keyFile": "/etc/ssl/certs/v2ray/priv-fullchain-bundle.pem"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "tag": "h2",
+            "protocol": "vmess",
+            "listen": "0.0.0.0",
+            "port": 8002,
+            "settings": {
+                "clients": [
+                    {
+                        "id": "${UUID}"
+                    }
+                ]
+            },
+            "streamSettings": {
+                "network": "h2"
+            }
+        },
+        {
+            "tag": "grpc",
+            "protocol": "vmess",
+            "listen": "0.0.0.0",
+            "port": 8003,
+            "settings": {
+                "clients": [
+                    {
+                        "id": "${UUID}"
+                    }
+                ]
+            },
+            "streamSettings": {
+                "network": "grpc",
+                "grpcSettings": {
+                    "serviceName": "${SERVICE_NAME}"
+                }
+            }
+        },
+        {
+            "tag": "quic",
+            "protocol": "vmess",
+            "listen": "0.0.0.0",
+            "port": 8004,
+            "settings": {
+                "clients": [
+                    {
+                        "id": "${UUID}"
+                    }
+                ]
+            },
+            "streamSettings": {
+                "network": "quic",
+                "quicSettings": {
+                    "security": "chacha20-poly1305",
+                    "key": "",
+                    "header": {
+                        "type": "none"
+                    }
+                }
+            }
+        }
+    ],
+    "outbounds": [
 EOF
 
     if [[ "$DEPLOY_CHOICES" == *"$WARP"* ]]; then
-        cat <<- EOF >> ./config/v2ray/config.yaml
-  - tag: cf-warp
-    protocol: socks
-    settings:
-      servers:
-        - address: warp
-          port: 40001
+        cat <<- EOF >> ./config/v2ray/config.json
+        {
+            "tag": "cf-warp",
+            "protocol": "socks",
+            "settings": {
+                "servers": [
+                    {
+                        "address": "warp",
+                        "port": 40001
+                    }
+                ]
+            }
+        },
 EOF
     fi
 
     if [[ "$ENABLE_SOCKS5" == "true" ]]; then
-        cat <<- EOF >> ./config/v2ray/config.yaml
-  - tag: socks
-    protocol: socks
-    listen: 0.0.0.0
-    port: 8005
-    settings:
-      address: 127.0.0.1
-      auth: password
-      accounts:
-        - user: ${SOCKS5_USER}
-          pass: ${SOCKS5_PASS}
+        cat <<- EOF >> ./config/v2ray/config.json
+        {
+            "tag": "socks",
+            "protocol": "socks",
+            "listen": "0.0.0.0",
+            "port": 8005,
+            "settings": {
+                "address": "127.0.0.1",
+                "auth": "password",
+                "accounts": [
+                    {
+                        "user": "${SOCKS5_USER}",
+                        "pass": "${SOCKS5_PASS}"
+                    }
+                ]
+            }
+        },
 EOF
     fi
 
-    cat <<- EOF >> ./config/v2ray/config.yaml
-routing:
-  domainStrategy: AsIs
-  domainMatcher: mph
-  rules:
-    - type: field
-      inboundTag:
-        - tcp
-        - grpc
-        - quic
-      outboundTag: freedom
-    - type: field
-      domain:
-        - geosite:category-ads-all
-      outboundTag: blocked
-    - type: field
-      protocol:
-        - bittorrent
-      outboundTag: blocked
+    cat <<- EOF >> ./config/v2ray/config.json
+        {
+            "tag": "blocked",
+            "protocol": "blackhole"
+        },
+        {
+            "tag": "freedom",
+            "protocol": "freedom"
+        }
+    ],
+    "routing": {
+        "domainStrategy": "AsIs",
+        "domainMatcher": "mph",
+        "rules": [
+            {
+                "type": "field",
+                "domain": [
+                    "geosite:category-ads-all"
+                ],
+                "outboundTag": "blocked"
+            },
+            {
+                "type": "field",
+                "protocol": [
+                    "bittorrent"
+                ],
+                "outboundTag": "blocked"
+            },
 EOF
 
     if [[ "$DEPLOY_CHOICES" == *"$WARP"* ]]; then
-    cat <<- EOF >> ./config/v2ray/config.yaml
-    - type: field
-      domain:
-        - geosite:reddit
-      outboundTag: cf-warp
+    cat <<- EOF >> ./config/v2ray/config.json
+            {
+                "type": "field",
+                "domain": [
+                    "geosite:reddit"
+                ],
+                "outboundTag": "cf-warp"
+            },
 EOF
     fi
 
-    cat <<- EOF >> ./config/v2ray/config.yaml
-policy:
-  system:
-    statsInboundUplink: false
-    statsInboundDownlink: false
-    statsOutboundUplink: false
-    statsOutboundDownlink: false
-  levels:
-    0:
-      handshake: 4
-      connIdle: 300
-      uplinkOnly: 2
-      downlinkOnly: 5
-      statsUserUplink: false
-      statsUserDownlink: false
-      bufferSize: 10240
+    cat <<- EOF >> ./config/v2ray/config.json
+            {
+                "type": "field",
+                "inboundTag": ["tcp", "grpc", "quic"],
+                "outboundTag": "freedom"
+            }
+        ]
+    },
+    "policy": {
+        "system": {
+            "statsInboundUplink": false,
+            "statsInboundDownlink": false,
+            "statsOutboundUplink": false,
+            "statsOutboundDownlink": false
+        },
+        "levels": {
+            "0": {
+                "handshake": 4,
+                "connIdle": 300,
+                "uplinkOnly": 2,
+                "downlinkOnly": 5,
+                "statsUserUplink": false,
+                "statsUserDownlink": false,
+                "bufferSize": 10240
+            }
+        }
+    }
+}
 EOF
 }
 
