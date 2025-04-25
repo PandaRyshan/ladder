@@ -46,6 +46,6 @@ jobs:
         name: Build and push to GitHub Container Registry
         uses: docker/build-push-action@v5
         with:
-          context: ./images/v2ray
+          context: ./images/warp
           push: true
-          tags: ghcr.io/${{ vars.REPO_OWNER_LOWER }}/v2ray:latest
+          tags: ghcr.io/${{ vars.REPO_OWNER_LOWER }}/warp:latest
