@@ -24,18 +24,19 @@ main_menu() {
     MENU_HISTORY=($MAIN_MENU)
     CURRENT_INDEX=0
     items=(
-        1 "状态 Status" on
-        2 "添加用户 Add User" off
-        3 "部署 Deploy" off
-        4 "重启 Restart" off
-        5 "更新 Upgrade" off
-        6 "停止 Stop" off
-        7 "卸载 Uninstall" off
+        1 "状态 Status"
+        2 "添加用户 Add User"
+        3 "删除用户 Del User"
+        4 "部署 Deploy"
+        5 "重启 Restart"
+        6 "更新 Upgrade"
+        7 "停止 Stop"
+        8 "卸载 Uninstall"
     )
     while true; do
         choice=$(dialog --clear \
             --title "主菜单" \
-            --radiolist "请选择一个选项：" 15 50 5 \
+            --menu "请选择一个选项：" 15 50 5 \
             "${items[@]}" \
             3>&1 1>&2 2>&3)
 
@@ -46,11 +47,12 @@ main_menu() {
         case $choice in
             1) status_menu ;;
             2) add_user;;
-            3) deploy_menu;;
-            4) restart_containers ;;
-            5) upgrade_containers ;;
-            6) stop_containers ;;
-            7) down_containers ;;
+            3) del_user;;
+            4) deploy_menu;;
+            5) restart_containers ;;
+            6) upgrade_containers ;;
+            7) stop_containers ;;
+            8) down_containers ;;
             *) ;;
         esac
     done
@@ -90,12 +92,9 @@ EOF
                 docker compose exec openvpn clientgen $USERNAME 2>&1
                 cp ./config/openvpn/clients/$USERNAME.ovpn ./config/www/conf/
                 UUID=$(uuidgen)
-                jq --arg new_user_uuid "$UUID" '
-                    .inbounds[] |= (
-                        .settings.clients += [{"id": $new_user_uuid}]
-                    )
-                ' ./config/v2ray/config.json > ./config/v2ray/config.json.tmp
-                mv ./config/v2ray/config.json.tmp ./config/v2ray/config.json
+                yq --arg new_user_uuid "$UUID" '
+                    .inbounds[].settings.clients += [{"id": $new_user_uuid}]
+                ' ./config/v2ray/config.json -iy
                 echo "重启 V2Ray 服务 Restarting V2Ray service..."
                 docker compose restart v2ray 2>&1
                 CFG_DOMAIN=$(cat .env | grep CFG_DOMAIN | cut -d '=' -f2)
@@ -108,10 +107,50 @@ EOF
                     echo "OpenVPN 配置下载: https://${PRX_DOMAIN}/conf/<your-user-name>.ovpn"
                 fi
             } | dialog --title "创建用户..." --programbox 20 70
+
+            echo "$USERNAME:$PASSWORD:$UUID" >> users.txt
             break
         fi
     done
-    # TODO: log the users in a file and for user delete feature
+}
+
+del_user() {
+    USERNAMES=$(awk -F: '{print $1}' users.txt)
+    items=(
+        "xiaohong" "" off
+        "xiaobai" "" off
+        "yaya" "" off
+    )
+    while true; do
+        CHOICES=$(dialog --clear \
+            --title "删除用户" \
+            --extra-button --extra-label "Previous" \
+            --checklist "请选择要删除的用户：" 15 50 5 \
+            "${items[@]}" \
+            3>&1 1>&2 2>&3)
+
+        exit_status=$?
+        exit_operation $exit_status
+
+        if [ -z "$CHOICES" ]; then
+            dialog --msgbox "请至少选择一项" 7 50
+        else
+            dialog --yesno "确认删除选中的用户吗？" 7 50
+            if [ $? -eq 0 ]; then
+                {
+                    for choice in $CHOICES; do
+                        echo "删除用户 $choice"
+                        sed -i "/$choice/d" ./config/nginx/.htpasswd
+                        docker compose exec openvpn clientrevoke $choice 2>&1
+                        UUID=$(grep -w "$choice" users.txt | cut -d ':' -f3)
+                        # yq --arg user "$UUID" 'del(.inbounds[].settings.clients[] | select(.id == $user))' ./config/v2ray/config.yaml -iy
+                        yq --arg user "$UUID" '.inbounds[].settings.clients -= [{"id": $user}]' ./config/v2ray/config.json -iy
+                        sed -i "/$choice/d" users.txt
+                    done
+                } | dialog --title "正在部署... Deploying..." --programbox 30 100
+            fi
+        fi
+    done
 }
 
 deploy_menu() {
@@ -121,7 +160,7 @@ deploy_menu() {
         DEPLOY_CHOICES=$(dialog --clear \
             --title "选择要部署的组件" \
             --extra-button --extra-label "Previous" \
-            --checklist "请选择至少一个选项：" 15 50 5 \
+            --checklist "请使用空格选择至少一个选项：" 15 50 5 \
             $V2RAY "V2Ray" on \
             $WARP "Warp" off \
             $OPENVPN "OpenVPN" off \
@@ -717,218 +756,145 @@ v2ray_config() {
     fi
     UUID=$(uuidgen)
     SERVICE_NAME=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
-    cat <<- EOF > ./config/v2ray/config.json
-{
-    "log": {
-        "loglevel": "warning"
-    },
-    "dns": {
-        "hosts": {
-            "geosite:category-ads-all": "127.0.0.1"
-        },
-        "servers": [
-            "8.8.8.8",
-            "1.1.1.1",
-            "localhost"
-        ],
-        "clientIp": "${PUBLIC_IP}"
-    },
-    "inbounds": [
-        {
-            "tag": "tcp",
-            "protocol": "vmess",
-            "listen": "0.0.0.0",
-            "port": 8001,
-            "settings": {
-                "clients": [
-                    {
-                        "id": "${UUID}"
-                    }
-                ]
-            },
-            "streamSettings": {
-                "network": "tcp",
-                "security": "tls",
-                "tlsSettings": {
-                    "certificates": [
-                        {
-                            "certificateFile": "/etc/ssl/certs/v2ray/priv-fullchain-bundle.pem",
-                            "keyFile": "/etc/ssl/certs/v2ray/priv-fullchain-bundle.pem"
-                        }
-                    ]
-                }
-            }
-        },
-        {
-            "tag": "h2",
-            "protocol": "vmess",
-            "listen": "0.0.0.0",
-            "port": 8002,
-            "settings": {
-                "clients": [
-                    {
-                        "id": "${UUID}"
-                    }
-                ]
-            },
-            "streamSettings": {
-                "network": "h2"
-            }
-        },
-        {
-            "tag": "grpc",
-            "protocol": "vmess",
-            "listen": "0.0.0.0",
-            "port": 8003,
-            "settings": {
-                "clients": [
-                    {
-                        "id": "${UUID}"
-                    }
-                ]
-            },
-            "streamSettings": {
-                "network": "grpc",
-                "grpcSettings": {
-                    "serviceName": "${SERVICE_NAME}"
-                }
-            }
-        },
-        {
-            "tag": "quic",
-            "protocol": "vmess",
-            "listen": "0.0.0.0",
-            "port": 8004,
-            "settings": {
-                "clients": [
-                    {
-                        "id": "${UUID}"
-                    }
-                ]
-            },
-            "streamSettings": {
-                "network": "quic",
-                "quicSettings": {
-                    "security": "chacha20-poly1305",
-                    "key": "",
-                    "header": {
-                        "type": "none"
-                    }
-                }
-            }
-        }
-    ],
-    "outbounds": [
+    cat <<- EOF > ./config/v2ray/config.yaml
+log:
+  loglevel: warning
+dns:
+  hosts:
+    geosite:category-ads-all: 127.0.0.1
+  servers:
+    - 8.8.8.8
+    - 1.1.1.1
+    - localhost
+  clientIp: ${PUBLIC_IP}
+inbounds:
+  - tag: tcp
+    protocol: vmess
+    listen: 0.0.0.0
+    port: 8001
+    settings:
+      clients:
+        - id: ${UUID}
+    streamSettings:
+      network: tcp
+      security: tls
+      tlsSettings:
+        certificates:
+          - certificateFile: /etc/ssl/certs/v2ray/priv-fullchain-bundle.pem
+            keyFile: /etc/ssl/certs/v2ray/priv-fullchain-bundle.pem
+  - tag: h2
+    protocol: vmess
+    listen: 0.0.0.0
+    port: 8002
+    settings:
+      clients:
+        - id: ${UUID}
+    streamSettings:
+      network: h2
+  - tag: grpc
+    protocol: vmess
+    listen: 0.0.0.0
+    port: 8003
+    settings:
+      clients:
+        - id: ${UUID}
+    streamSettings:
+      network: grpc
+      grpcSettings:
+        serviceName: ${SERVICE_NAME}
+  - tag: quic
+    protocol: vmess
+    listen: 0.0.0.0
+    port: 8004
+    settings:
+      clients:
+        - id: ${UUID}
+    streamSettings:
+      network: quic
+      quicSettings:
+        security: chacha20-poly1305
+        key: ""
+        header:
+          type: none
+outbounds:
+  - tag: freedom
+    protocol: freedom
+  - tag: blocked
+    protocol: blackhole
 EOF
 
     if [[ "$DEPLOY_CHOICES" == *"$WARP"* ]]; then
-        cat <<- EOF >> ./config/v2ray/config.json
-        {
-            "tag": "cf-warp",
-            "protocol": "socks",
-            "settings": {
-                "servers": [
-                    {
-                        "address": "warp",
-                        "port": 40001
-                    }
-                ]
-            }
-        },
+        cat <<- EOF >> ./config/v2ray/config.yaml
+  - tag: cf-warp
+    protocol: socks
+    settings:
+      servers:
+        - address: warp
+          port: 40001
 EOF
     fi
 
     if [[ "$ENABLE_SOCKS5" == "true" ]]; then
-        cat <<- EOF >> ./config/v2ray/config.json
-        {
-            "tag": "socks",
-            "protocol": "socks",
-            "listen": "0.0.0.0",
-            "port": 8005,
-            "settings": {
-                "address": "127.0.0.1",
-                "auth": "password",
-                "accounts": [
-                    {
-                        "user": "${SOCKS5_USER}",
-                        "pass": "${SOCKS5_PASS}"
-                    }
-                ]
-            }
-        },
+        cat <<- EOF >> ./config/v2ray/config.yaml
+  - tag: socks
+    protocol: socks
+    listen: 0.0.0.0
+    port: 8005
+    settings:
+      address: 127.0.0.1
+      auth: password
+      accounts:
+        - user: ${SOCKS5_USER}
+          pass: ${SOCKS5_PASS}
 EOF
     fi
 
-    cat <<- EOF >> ./config/v2ray/config.json
-        {
-            "tag": "blocked",
-            "protocol": "blackhole"
-        },
-        {
-            "tag": "freedom",
-            "protocol": "freedom"
-        }
-    ],
-    "routing": {
-        "domainStrategy": "AsIs",
-        "domainMatcher": "mph",
-        "rules": [
-            {
-                "type": "field",
-                "domain": [
-                    "geosite:category-ads-all"
-                ],
-                "outboundTag": "blocked"
-            },
-            {
-                "type": "field",
-                "protocol": [
-                    "bittorrent"
-                ],
-                "outboundTag": "blocked"
-            },
+    cat <<- EOF >> ./config/v2ray/config.yaml
+routing:
+  domainStrategy: AsIs
+  domainMatcher: mph
+  rules:
+    - type: field
+      inboundTag:
+        - tcp
+        - grpc
+        - quic
+      outboundTag: freedom
+    - type: field
+      domain:
+        - geosite:category-ads-all
+      outboundTag: blocked
+    - type: field
+      protocol:
+        - bittorrent
+      outboundTag: blocked
 EOF
 
     if [[ "$DEPLOY_CHOICES" == *"$WARP"* ]]; then
-    cat <<- EOF >> ./config/v2ray/config.json
-            {
-                "type": "field",
-                "domain": [
-                    "geosite:reddit"
-                ],
-                "outboundTag": "cf-warp"
-            },
+    cat <<- EOF >> ./config/v2ray/config.yaml
+    - type: field
+      domain:
+        - geosite:reddit
+      outboundTag: cf-warp
 EOF
     fi
 
-    cat <<- EOF >> ./config/v2ray/config.json
-            {
-                "type": "field",
-                "inboundTag": ["tcp", "grpc", "quic"],
-                "outboundTag": "freedom"
-            }
-        ]
-    },
-    "policy": {
-        "system": {
-            "statsInboundUplink": false,
-            "statsInboundDownlink": false,
-            "statsOutboundUplink": false,
-            "statsOutboundDownlink": false
-        },
-        "levels": {
-            "0": {
-                "handshake": 4,
-                "connIdle": 300,
-                "uplinkOnly": 2,
-                "downlinkOnly": 5,
-                "statsUserUplink": false,
-                "statsUserDownlink": false,
-                "bufferSize": 10240
-            }
-        }
-    }
-}
+    cat <<- EOF >> ./config/v2ray/config.yaml
+policy:
+  system:
+    statsInboundUplink: false
+    statsInboundDownlink: false
+    statsOutboundUplink: false
+    statsOutboundDownlink: false
+  levels:
+    0:
+      handshake: 4
+      connIdle: 300
+      uplinkOnly: 2
+      downlinkOnly: 5
+      statsUserUplink: false
+      statsUserDownlink: false
+      bufferSize: 10240
 EOF
 }
 

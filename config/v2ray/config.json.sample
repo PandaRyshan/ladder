@@ -7,13 +7,10 @@
             "geosite:category-ads-all": "127.0.0.1"
         },
         "servers": [
-            "1.1.1.1",
             "8.8.8.8",
-            "https+local://cloudflare-dns.com/dns-query",
-            "https+local://dns.google/dns-query"
+            "1.1.1.1"
         ],
         "clientIp": "<your-host-ip>"
-        // "tag": "dns-in"
     },
     "inbounds": [
         {
@@ -103,8 +100,6 @@
         }
     ],
     "outbounds": [
-        // first one is the default option
-        // could be omitted in "routing" block below
         {
             "tag": "freedom",
             "protocol": "freedom"

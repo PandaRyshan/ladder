@@ -116,5 +116,7 @@ V2Ray 配置在 ladder 目录下的 info.txt 内，可以使用 `cat` 命令查�
 
 ## Todo
 
+* [x] add deploy process
+* [x] add user mgmt menu
+* [ ] add change DNS menu
 * [ ] add help
-* [ ] add user mgmt gui

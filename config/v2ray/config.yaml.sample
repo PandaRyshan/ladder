@@ -1,0 +1,117 @@
+log:
+  loglevel: warning
+dns:
+  hosts:
+    geosite:category-ads-all: 127.0.0.1
+  servers:
+    - 8.8.8.8
+    - 1.1.1.1
+    - localhost
+  clientIp: ${PUBLIC_IP}
+inbounds:
+  - tag: tcp
+    protocol: vmess
+    listen: 0.0.0.0
+    port: 8001
+    settings:
+      clients:
+        - id: ${UUID}
+    streamSettings:
+      network: tcp
+      security: tls
+      tlsSettings:
+        certificates:
+          - certificateFile: /etc/ssl/certs/v2ray/priv-fullchain-bundle.pem
+            keyFile: /etc/ssl/certs/v2ray/priv-fullchain-bundle.pem
+  - tag: h2
+    protocol: vmess
+    listen: 0.0.0.0
+    port: 8002
+    settings:
+      clients:
+        - id: ${UUID}
+    streamSettings:
+      network: h2
+  - tag: grpc
+    protocol: vmess
+    listen: 0.0.0.0
+    port: 8003
+    settings:
+      clients:
+        - id: ${UUID}
+    streamSettings:
+      network: grpc
+      grpcSettings:
+        serviceName: ${SERVICE_NAME}
+  - tag: quic
+    protocol: vmess
+    listen: 0.0.0.0
+    port: 8004
+    settings:
+      clients:
+        - id: ${UUID}
+    streamSettings:
+      network: quic
+      quicSettings:
+        security: chacha20-poly1305
+        key: ""
+        header:
+          type: none
+outbounds:
+  - tag: freedom
+    protocol: freedom
+  - tag: blocked
+    protocol: blackhole
+  - tag: cf-warp
+    protocol: socks
+    settings:
+      servers:
+        - address: warp
+          port: 40001
+  - tag: socks
+    protocol: socks
+    listen: 0.0.0.0
+    port: 8005
+    settings:
+      address: 127.0.0.1
+      auth: password
+      accounts:
+        - user: ${SOCKS5_USER}
+          pass: ${SOCKS5_PASS}
+routing:
+  domainStrategy: AsIs
+  domainMatcher: mph
+  rules:
+    - outboundTag: freedom
+      type: field
+      inboundTag:
+        - tcp
+        - grpc
+        - quic
+    - outboundTag: blocked
+      type: field
+      domain:
+        - geosite:category-ads-all
+    - outboundTag: blocked
+      type: field
+      protocol:
+        - bittorrent
+    - outboundTag: cf-warp
+      type: field
+      domain:
+        - geosite:reddit
+policy:
+  system:
+    statsInboundUplink: false
+    statsInboundDownlink: false
+    statsOutboundUplink: false
+    statsOutboundDownlink: false
+  levels:
+    0:
+      handshake: 4
+      connIdle: 300
+      uplinkOnly: 2
+      downlinkOnly: 5
+      statsUserUplink: false
+      statsUserDownlink: false
+      bufferSize: 10240
