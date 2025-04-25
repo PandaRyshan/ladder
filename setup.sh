@@ -663,7 +663,7 @@ EOF
     environment:
       - WAIT_PATHS=/etc/ssl/certs/v2ray/priv-fullchain-bundle.pem
     volumes:
-      - ./config/v2ray/config.json:/etc/v2ray/config.json
+      - ./config/v2ray/config.yaml:/etc/v2ray/config.yaml
       - ./config/geodata:/usr/share/v2ray
       - ./config/certs/live/\${PRX_DOMAIN}:/etc/ssl/certs/v2ray
     networks:
