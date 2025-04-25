@@ -143,7 +143,14 @@ del_user() {
                         docker compose exec openvpn clientrevoke $choice 2>&1
                         UUID=$(grep -w "$choice" users.txt | cut -d ':' -f3)
                         # yq --arg user "$UUID" 'del(.inbounds[].settings.clients[] | select(.id == $user))' ./config/v2ray/config.yaml -iy
-                        yq -iy --indent 4 --arg user "$UUID" '.inbounds[].settings.clients -= [{"id": $user}]' ./config/v2ray/config.json -iy
+                        # yq -iy --indent 4 --arg user "$UUID" '.inbounds[].settings.clients -= [{"id": $user}]' ./config/v2ray/config.json -iy
+                        # jq --arg user "$UUID" \
+                        #     'del(.inbounds[].settings.clients[] | select(.id == $user))' \
+                        #     ./config/v2ray/config.json > ./config/v2ray/config.json.tmp
+                        jq --arg user "$UUID" \
+                            '.inbounds[].settings.clients -= [{"id": $user}]' \
+                            ./config/v2ray/config.json > ./config/v2ray/config.json.tmp
+                        mv ./config/v2ray/config.json.tmp ./config/v2ray/config.json
                         sed -i "/$choice/d" users.txt
                     done
                 } | dialog --title "正在部署... Deploying..." --programbox 30 100
