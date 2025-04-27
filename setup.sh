@@ -153,7 +153,7 @@ del_user() {
                         mv ./config/v2ray/config.json.tmp ./config/v2ray/config.json
                         sed -i "/$choice/d" users.txt
                     done
-                } | dialog --title "正在部署... Deploying..." --programbox 30 100
+                } | dialog --title "正在删除... Del Users..." --programbox 30 100
             fi
         fi
     done
