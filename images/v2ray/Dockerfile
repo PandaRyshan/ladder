@@ -3,12 +3,13 @@ FROM alpine:edge
 LABEL maintainer="Hu Xiaohong <xiaohong@pandas.run>"
 
 ENV VERSION="v5.30.0"
-ENV ZIPFILE="v2ray-linux-64"
+ENV ARCH="64"
+ENV ZIPFILE="v2ray-linux-${ARCH}.zip"
 
 ARG TARGETARCH
 RUN case ${TARGETARCH} in \
-        "amd64") ZIPFILE="v2ray-linux-64" ;; \
-        "arm64") ZIPFILE="v2ray-linux-arm64-v8a" ;; \
+        "amd64") ARCH="64" ;; \
+        "arm64") ARCH="arm64-v8a" ;; \
         *) echo "Unsupported architecture: ${TARGETARCH}" && exit 1 ;; \
     esac
 
