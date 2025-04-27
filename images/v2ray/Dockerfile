@@ -3,20 +3,18 @@ FROM alpine:edge
 LABEL maintainer="Hu Xiaohong <xiaohong@pandas.run>"
 
 ENV VERSION="v5.30.0"
-ENV ARCH="64"
-ENV ZIPFILE="v2ray-linux-${ARCH}.zip"
 
 ARG TARGETARCH
-RUN case ${TARGETARCH} in \
-        "amd64") ARCH="64" ;; \
-        "arm64") ARCH="arm64-v8a" ;; \
-        *) echo "Unsupported architecture: ${TARGETARCH}" && exit 1 ;; \
-    esac
-
-ENV URL="https://github.com/v2fly/v2ray-core/releases/download/${VERSION}/${ZIPFILE}"
 
 RUN apk update \
         && apk add --no-cache --quiet curl unzip \
+        && case ${TARGETARCH} in \
+                "amd64") ARCH="64" ;; \
+                "arm64") ARCH="arm64-v8a" ;; \
+                *) echo "Unsupported architecture: ${TARGETARCH}" && exit 1 ;; \
+        esac \
+        && ZIPFILE="v2ray-linux-${ARCH}.zip" \
+        && URL="https://github.com/v2fly/v2ray-core/releases/download/${VERSION}/${ZIPFILE}" \
         && curl -LO ${URL} \
         && unzip ${ZIPFILE} v2ray geoip-only-cn-private.dat config.json \
                 geosite.dat geoip.dat -d . \
@@ -29,4 +27,4 @@ RUN apk update \
 COPY docker-entrypoint.sh /usr/bin/docker-entrypoint.sh
 COPY --from=ghcr.io/ufoscout/docker-compose-wait:latest /wait /wait
 
-ENTRYPOINT [ "docker-entrypoint.sh" ]
+ENTRYPOINT [ "sh", "/usr/bin/docker-entrypoint.sh" ]

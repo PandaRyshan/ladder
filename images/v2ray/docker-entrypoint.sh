@@ -1,6 +1,6 @@
 #!/bin/sh
 
-if [[ -n "$WAIT_HOSTS" ]] || [[ -n "$WAIT_PATHS" ]]; then
+if [ -n "$WAIT_HOSTS" ] || [ -n "$WAIT_PATHS" ]; then
     /wait
 fi
 
