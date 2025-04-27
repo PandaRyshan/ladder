@@ -33,6 +33,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: ./images/v2ray
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: pandasrun/v2ray:latest
       -
@@ -47,5 +48,6 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: ./images/v2ray
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: ghcr.io/${{ vars.REPO_OWNER_LOWER }}/v2ray:latest
