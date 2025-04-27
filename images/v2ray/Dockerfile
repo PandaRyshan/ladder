@@ -3,7 +3,15 @@ FROM alpine:edge
 LABEL maintainer="Hu Xiaohong <xiaohong@pandas.run>"
 
 ENV VERSION="v5.30.0"
-ENV ZIPFILE="v2ray-linux-64.zip"
+ENV ZIPFILE="v2ray-linux-64"
+
+ARG TARGETARCH
+RUN case ${TARGETARCH} in \
+        "amd64") ZIPFILE="v2ray-linux-64" ;; \
+        "arm64") ZIPFILE="v2ray-linux-arm64-v8a" ;; \
+        *) echo "Unsupported architecture: ${TARGETARCH}" && exit 1 ;; \
+    esac
+
 ENV URL="https://github.com/v2fly/v2ray-core/releases/download/${VERSION}/${ZIPFILE}"
 
 RUN apk update \
