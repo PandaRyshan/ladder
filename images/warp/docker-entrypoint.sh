@@ -43,5 +43,8 @@ echo "------------ start connect ------------"
 warp-cli --accept-tos connect
 
 # keep container running: tail -f /dev/null
-socat TCP-LISTEN:40001,reuseaddr,fork TCP:127.0.0.1:40000
-
+if ip -6 addr | grep -q "scope global"; then
+	socat TCP6-LISTEN:40001,reuseaddr,fork TCP6:127.0.0.1:40000
+else
+	socat TCP-LISTEN:40001,reuseaddr,fork TCP:127.0.0.1:40000
+fi
