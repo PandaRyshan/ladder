@@ -1,7 +1,9 @@
-FROM ubuntu:jammy
+FROM ubuntu:minimal
 LABEL maintainer="Hu Xiaohong <xiaohong@pandas.run>"
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+ARG TARGETARCH
 
 RUN set -x \
   && apt update && apt install -y cron socat curl gpg lsb-release \
@@ -16,6 +18,6 @@ RUN set -x \
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-ENTRYPOINT docker-entrypoint.sh
+ENTRYPOINT [ "bash", "/usr/local/bin/docker-entrypoint.sh" ]
 
 EXPOSE 40001
