@@ -1075,7 +1075,7 @@ EOF
     if [[ "$DEPLOY_CHOICES" == *"$OPENVPN"* ]]; then
         cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
 backend openvpn
-    server openvpn openvpn:443
+    server openvpn openvpn:1194
 EOF
     fi
 
