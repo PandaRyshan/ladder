@@ -1,4 +1,4 @@
-FROM debian:bookworm-slim
+FROM ubuntu:latest
 LABEL maintainer="Hu Xiaohong <xiaohong@pandas.run>"
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
