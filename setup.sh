@@ -698,6 +698,7 @@ EOF
     container_name: openvpn
     environment:
       - DOMAIN=\${PRX_DOMAIN}
+      - FORWARD_PROXY_IP=\${FORWARD_PROXY_IP}
     volumes:
       - ./config/openvpn:/etc/openvpn
     devices:
@@ -1075,7 +1076,7 @@ EOF
     if [[ "$DEPLOY_CHOICES" == *"$OPENVPN"* ]]; then
         cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
 backend openvpn
-    server openvpn openvpn:1194
+    server openvpn openvpn:443
 EOF
     fi
 
