@@ -1,6 +1,5 @@
 #!/bin/bash
 
-
 CLEANUP_INTERVAL=${CLEANUP_INTERVAL:-6}
 DAEMON_DELAY=${DAEMON_DELAY:-3}
 PROXY_MODE=${PROXY_MODE:-proxy}
@@ -44,7 +43,7 @@ warp-cli --accept-tos connect
 
 # keep container running: tail -f /dev/null
 if ip -6 addr | grep -q "scope global"; then
-	socat TCP6-LISTEN:40001,reuseaddr,fork TCP6:127.0.0.1:40000
+	socat TCP6-LISTEN:40001,reuseaddr,fork TCP:127.0.0.1:40000
 else
 	socat TCP-LISTEN:40001,reuseaddr,fork TCP:127.0.0.1:40000
 fi
