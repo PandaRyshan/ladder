@@ -698,7 +698,8 @@ EOF
     container_name: openvpn
     environment:
       - DOMAIN=\${PRX_DOMAIN}
-      - FORWARD_PROXY_IP=\${FORWARD_PROXY_IP}
+      - FORWARD_PROXY_IPV4=\${FORWARD_PROXY_IPV4}
+      - FORWARD_PROXY_IPV6=\${FORWARD_PROXY_IPV6}
     volumes:
       - ./config/openvpn:/etc/openvpn
     devices:
