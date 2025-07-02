@@ -576,9 +576,13 @@ net.ipv4.tcp_max_syn_backlog = 8192
 
 net.core.rmem_max = 67108864
 net.core.wmem_max = 67108864
-net.ipv4.tcp_mem = 65536 131072 262144
-net.ipv4.tcp_rmem = 4096 262144 134217728
-net.ipv4.tcp_wmem = 4096 262144 134217728
+net.ipv4.tcp_rmem = 4096 131072 8388608
+net.ipv4.tcp_wmem = 4096 87380 8388608
+#net.ipv4.tcp_wmem = 4096 65536 8388608
+net.ipv4.tcp_mem = 262144 393216 524288
+
+net.ipv4.ip_forward = 1
+net.ipv6.conf.all.forwarding = 1
 
 net.core.default_qdisc = fq
 net.ipv4.tcp_congestion_control = bbr
@@ -713,6 +717,21 @@ EOF
       - NET_ADMIN
     security_opt:
       - no-new-privileges
+    restart: unless-stopped
+
+EOF
+    fi
+
+    if [[ "$DEPLOY_CHOICES" == *"$GOST"* ]]; then
+        cat <<- EOF >> docker-compose.yaml
+  gost:
+    image: gogost/gost:latest
+    container_name: gost
+    networks:
+      - ipv6
+    command:
+      -L "tcp://[::]:40000?sniffing=true&trpoxy=true&so_mark=100"
+      -F "socks5://v2ray:7799"
     restart: unless-stopped
 
 EOF
