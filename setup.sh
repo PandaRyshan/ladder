@@ -224,19 +224,21 @@ v2ray_config_menu() {
         fi
     done
     while true; do
-        dialog --defaultno --yesno "是否启用 socks5?" 7 50
+        dialog --defaultno --yesno "是否配置出站 socks5?" 7 50
         if [ $? -eq 0 ]; then
             ENABLE_SOCKS5="true"
             dialog_args=(
                 --title "SOCKS5 配置" \
                 --extra-button --extra-label "Previous" \
                 --mixedform "请输入 SOCKS5 认证信息：" 15 60 5 \
-                "用户:" 1 1 "" 1 10 40 40 0 \
-                "密码:" 2 1 "" 2 10 40 40 0
+                "地址:" 1 1 "" 1 10 40 40 0 \
+                "用户:" 2 1 "" 2 10 40 40 0 \
+                "密码:" 3 1 "" 3 10 40 40 0
             )
             result=$(dialog "${dialog_args[@]}" 3>&1 1>&2 2>&3)
-            SOCKS5_USER=$(sed -n '1p' <<< $result)
-            SOCKS5_PASS=$(sed -n '2p' <<< $result)
+            SOCKS5_ADDR=$(sed -n '1p' <<< $result)
+            SOCKS5_USER=$(sed -n '2p' <<< $result)
+            SOCKS5_PASS=$(sed -n '3p' <<< $result)
             if [ -z "$SOCKS5_USER" ] || [ -z "$SOCKS5_PASS" ]; then
                 dialog --msgbox "必须输入认证信息以启用Socks5" 7 50
             else
@@ -624,9 +626,9 @@ docker_compose_config() {
     cat <<- EOF > docker-compose.yaml
 services:
 
-  haproxy_tcp:
-    image: ghcr.io/pandaryshan/haproxy:latest
-    container_name: haproxy_tcp
+  haproxy:
+    image: haproxy:latest
+    container_name: haproxy
     volumes:
       - ./config/haproxy/haproxy.tcp.cfg:/usr/local/etc/haproxy/haproxy.cfg
       - ./config/certs/live/\${PRX_DOMAIN}:/etc/ssl/certs
@@ -783,6 +785,8 @@ v2ray_config() {
     fi
     UUID=$(uuidgen)
     SERVICE_NAME=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
+    SOCKS_SERVER_USER=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)
+    SOCKS_SERVER_PASS=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)
     cat <<- EOF > ./config/v2ray/config.json
 {
     "log": {
@@ -826,19 +830,19 @@ v2ray_config() {
             }
         },
         {
-            "tag": "h2",
-            "protocol": "vmess",
+            "tag": "socks",
+            "protocol": "socks",
             "listen": "0.0.0.0",
             "port": 8002,
             "settings": {
-                "clients": [
+                "address": "127.0.0.1",
+                "auth": "password",
+                "accounts": [
                     {
-                        "id": "${UUID}"
+                        "user": "${SOCKS_SERVER_USER}",
+                        "pass": "${SOCKS_SERVER_PASS}"
                     }
                 ]
-            },
-            "streamSettings": {
-                "network": "h2"
             }
         },
         {
@@ -909,15 +913,15 @@ EOF
         {
             "tag": "socks",
             "protocol": "socks",
-            "listen": "0.0.0.0",
-            "port": 8005,
             "settings": {
-                "address": "127.0.0.1",
-                "auth": "password",
-                "accounts": [
+                "servers": [
                     {
-                        "user": "${SOCKS5_USER}",
-                        "pass": "${SOCKS5_PASS}"
+                        "address": "${SOCKS5_ADDR}",
+                        "port": 443,
+                        "users": [{
+                            "user": "${SOCKS5_USER}",
+                            "pass": "${SOCKS5_PASS}"
+                        }]
                     }
                 ]
             }
@@ -1059,6 +1063,12 @@ EOF
 
 EOF
 
+    if [[ "$DEPLOY_CHOICES" == *"$SOCKS"* ]]; then
+        cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
+    use_backend v2ray_socks if is_socks
+EOF
+    fi
+
     if [[ "$DEPLOY_CHOICES" == *"$V2RAY"* ]]; then
         cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
     use_backend v2ray_tcp if is_proxy !is_h1 !is_h2
@@ -1089,6 +1099,14 @@ EOF
         cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
 backend v2ray_tcp
     server v2ray v2ray:8001
+
+EOF
+    fi
+
+    if [[ "$DEPLOY_CHOICES" == *"$SOCKS"* ]]; then
+        cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
+backend v2ray_socks
+    server v2ray v2ray:8002
 
 EOF
     fi
