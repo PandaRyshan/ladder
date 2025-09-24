@@ -1126,23 +1126,20 @@ nginx_config() {
     mkdir -p ./config/www/
     curl -sLo ./config/www/index.html https://raw.githubusercontent.com/PandaRyshan/ladder/main/config/www/index.html
     cat <<- EOF > ./config/nginx/site-confs/default.conf
-## Version 2024/12/17 - https://github.com/linuxserver/docker-swag/blob/master/root/defaults/nginx/site-confs/default.conf.sample
-## Changelog: https://github.com/linuxserver/docker-swag/commits/master/root/defaults/nginx/site-confs/default.conf.sample
+## Version 2025/07/17 - https://github.com/linuxserver/docker-swag/blob/master/root/defaults/nginx/site-confs/default.conf.sample
 
 server {
-    listen 80 default_server;
-    listen [::]:80 default_server;
-
-    location / {
-        return 301 https://\$host$request_uri;
-    }
+    listen 443 ssl default_server;
+    listen [::]:443 ssl default_server;
+    server_name _;
+    return 444;
 }
 
 server {
     listen 443 ssl default_server;
     listen [::]:443 ssl default_server;
 
-    server_name _;
+    server_name ${PRX_DOMAIN} ${CFG_DOMAIN};
 
     include /config/nginx/ssl.conf;
 

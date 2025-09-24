@@ -33,9 +33,6 @@ services:
       - ./config/www:/config/www
     networks:
       - ipv6
-    ports:
-      # Uses 80 port to update certs first, otherwise haproxy cannot works
-      - 80:80
     restart: unless-stopped
 
   haproxy_tcp:
@@ -47,12 +44,13 @@ services:
     networks:
       - ipv6
     ports:
+      - 80:80/tcp
       - 443:443/tcp
     restart: unless-stopped
 
-  haproxy_http:
+  haproxy:
     image: pandasrun/haproxy:latest
-    container_name: haproxy_http
+    container_name: haproxy
     volumes:
       - ./config/haproxy/haproxy.http.cfg:/usr/local/etc/haproxy/haproxy.cfg
       - ./config/certs/live/${V2RAY_SUB}.${DOMAIN}:/etc/ssl/certs
