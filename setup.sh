@@ -15,6 +15,52 @@ WARP_CONFIG_MENU=4
 SMOKEPING_CONFIG_MENU=5
 SYSCTL_MENU=6
 
+# 统一对话框封装与校验函数
+run_menu_dialog() {
+    local __outvar="$1"; shift
+    local __result
+    __result=$(dialog "$@" 3>&1 1>&2 2>&3)
+    local __status=$?
+    eval "$__outvar=\"$__result\""
+    exit_operation $__status
+    return $__status
+}
+
+run_prompt_dialog() {
+    local __outvar="$1"; shift
+    local __result
+    __result=$(dialog "$@" 3>&1 1>&2 2>&3)
+    local __status=$?
+    eval "$__outvar=\"$__result\""
+    return $__status
+}
+
+run_yesno_with_prev() {
+    # 用于带 Previous 按钮的 yes/no，对 3/255 交给 exit_operation，其它返回状态码
+    local __status
+    dialog "$@" 3>&1 1>&2 2>&3
+    __status=$?
+    if [ $__status -eq 3 ] || [ $__status -eq 255 ]; then
+        exit_operation $__status
+    fi
+    return $__status
+}
+
+validate_domain() {
+    local domain="$1"
+    [[ -z "$domain" ]] && return 1
+    if [[ "$domain" =~ ^([A-Za-z0-9-]+\.)+[A-Za-z]{2,}$ ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+show_error() {
+    local msg="$1"
+    dialog --msgbox "$msg" 7 60
+}
+
 V2RAY=1
 WARP=2
 OPENVPN=3
@@ -34,15 +80,11 @@ main_menu() {
         8 "卸载 Uninstall"
     )
     while true; do
-        choice=$(dialog --clear \
+        run_menu_dialog choice --clear \
             --title "主菜单" \
             --menu "请选择一个选项：" 15 50 5 \
             "${items[@]}" \
-            3>&1 1>&2 2>&3)
-
-        # 获取 dialog 退出值
-        exit_status=$?
-        exit_operation $exit_status
+            3>&1 1>&2 2>&3
 
         case $choice in
             1) status_menu ;;
@@ -72,8 +114,8 @@ add_user() {
         )
 
         result=$(dialog "${dialog_args[@]}" 3>&1 1>&2 2>&3)
-        USERNAME=$(sed -n '1p' <<< $result)
-        PASSWORD=$(sed -n '2p' <<< $result)
+        USERNAME=$(sed -n '1p' <<< "$result")
+        PASSWORD=$(sed -n '2p' <<< "$result")
 
         if [ -z "$USERNAME" ] || [ -z "$PASSWORD" ]; then
             dialog --msgbox "账号密码均为必填" 7 50
@@ -121,15 +163,19 @@ del_user() {
         for USERNAME in $USERNAMES; do
             items+=("$USERNAME" "" off)
         done
-        CHOICES=$(dialog --clear \
+        run_menu_dialog CHOICES --clear \
             --title "删除用户" \
             --extra-button --extra-label "Previous" \
             --checklist "请选择要删除的用户：" 15 50 5 \
             "${items[@]}" \
-            3>&1 1>&2 2>&3)
+            3>&1 1>&2 2>&3
 
-        exit_status=$?
-        exit_operation $exit_status
+        status=$?
+        if [ $status -eq 3 ]; then
+            return
+        elif [ $status -eq 255 ]; then
+            continue
+        fi
 
         if [ -z "$CHOICES" ]; then
             dialog --msgbox "请至少选择一项" 7 50
@@ -142,11 +188,6 @@ del_user() {
                         sed -i "/$choice/d" ./config/nginx/.htpasswd
                         docker compose exec openvpn clientrevoke $choice 2>&1
                         UUID=$(grep -w "$choice" users.txt | cut -d ':' -f3)
-                        # yq --arg user "$UUID" 'del(.inbounds[].settings.clients[] | select(.id == $user))' ./config/v2ray/config.yaml -iy
-                        # yq -iy --indent 4 --arg user "$UUID" '.inbounds[].settings.clients -= [{"id": $user}]' ./config/v2ray/config.json -iy
-                        # jq --arg user "$UUID" \
-                        #     'del(.inbounds[].settings.clients[] | select(.id == $user))' \
-                        #     ./config/v2ray/config.json > ./config/v2ray/config.json.tmp
                         jq --arg user "$UUID" \
                             '.inbounds[].settings.clients -= [{"id": $user}]' \
                             ./config/v2ray/config.json > ./config/v2ray/config.json.tmp
@@ -163,7 +204,7 @@ deploy_menu() {
     MENU_HISTORY=($MAIN_MENU $DEPLOY_MENU)
     CURRENT_INDEX=1
     while true; do
-        DEPLOY_CHOICES=$(dialog --clear \
+        run_menu_dialog DEPLOY_CHOICES --clear \
             --title "选择要部署的组件" \
             --extra-button --extra-label "Previous" \
             --checklist "请使用空格选择至少一个选项：" 15 50 5 \
@@ -171,10 +212,14 @@ deploy_menu() {
             $WARP "Warp" off \
             $OPENVPN "OpenVPN" off \
             $SMOKEPING "SmokePing" off \
-            3>&1 1>&2 2>&3)
+            3>&1 1>&2 2>&3
 
-        exit_status=$?
-        exit_operation $exit_status
+        status=$?
+        if [ $status -eq 3 ]; then
+            return
+        elif [ $status -eq 255 ]; then
+            continue
+        fi
 
         if [ -z "$DEPLOY_CHOICES" ]; then
             dialog --msgbox "请至少选择一项" 7 50
@@ -194,56 +239,79 @@ deploy_menu() {
 }
 
 v2ray_config_menu() {
-    TIMEZONE=${1:-"Asia/Shanghai"}
-    PRX_DOMAIN=${2:-""}
-    CFG_DOMAIN=${3:-""}
+    TIMEZONE=${1:-"${TIMEZONE:-Asia/Shanghai}"}
+    PRX_DOMAIN=${2:-"${PRX_DOMAIN:-}"}
+    CFG_DOMAIN=${3:-"${CFG_DOMAIN:-}"}
 
     while true; do
         dialog_args=(
-            --title "环境配置" \
-            --extra-button --extra-label "Previous" \
-            --mixedform "请输入环境配置信息：" 15 60 5 \
-            "时区:" 1 1 "$TIMEZONE" 1 11 40 40 0 \
-            "代理域名:" 2 1 "$PRX_DOMAIN" 2 11 40 40 0 \
+            --title "环境配置"
+            --extra-button --extra-label "Previous"
+            --mixedform "请输入环境配置信息：" 15 60 5
+            "时区:" 1 1 "$TIMEZONE" 1 11 40 40 0
+            "代理域名:" 2 1 "$PRX_DOMAIN" 2 11 40 40 0
             "配置域名:" 3 1 "$CFG_DOMAIN" 3 11 40 40 0
         )
-
-        result=$(dialog "${dialog_args[@]}" 3>&1 1>&2 2>&3)
-
-        exit_status=$?
-        exit_operation $exit_status
-
-        TIMEZONE=$(sed -n '1p' <<< $result)
-        PRX_DOMAIN=$(sed -n '2p' <<< $result)
-        CFG_DOMAIN=$(sed -n '3p' <<< $result)
-
-        if [ -z "$TIMEZONE" ] || [ -z "$PRX_DOMAIN" ]; then
-            dialog --msgbox "时区和代理域名必须填写。" 7 50
-        else
-            break
+        local result status
+        run_menu_dialog result "${dialog_args[@]}"
+        status=$?
+        if [ $status -eq 3 ]; then
+            return
+        elif [ $status -eq 255 ]; then
+            continue
         fi
+
+        TIMEZONE=$(sed -n '1p' <<< "$result")
+        PRX_DOMAIN=$(sed -n '2p' <<< "$result")
+        CFG_DOMAIN=$(sed -n '3p' <<< "$result")
+
+        if [ -z "$TIMEZONE" ]; then
+            show_error "时区必须填写。"
+            continue
+        fi
+        if ! validate_domain "$PRX_DOMAIN"; then
+            show_error "代理域名格式不正确，请输入有效域名（例如：example.com）。"
+            continue
+        fi
+        if [[ -n "$CFG_DOMAIN" ]] && ! validate_domain "$CFG_DOMAIN"; then
+            show_error "配置域名格式不正确，请输入有效域名。"
+            continue
+        fi
+        break
     done
+
     while true; do
-        dialog --defaultno --yesno "是否配置出站 socks5?" 7 50
-        if [ $? -eq 0 ]; then
+        local yn_status yn_result
+        run_prompt_dialog yn_result --defaultno --yesno "是否配置出站 socks5?" 7 50
+        yn_status=$?
+        if [ $yn_status -eq 0 ]; then
             ENABLE_SOCKS5="true"
             dialog_args=(
-                --title "SOCKS5 配置" \
-                --extra-button --extra-label "Previous" \
-                --mixedform "请输入 SOCKS5 认证信息：" 15 60 5 \
-                "地址:" 1 1 "" 1 10 40 40 0 \
-                "用户:" 2 1 "" 2 10 40 40 0 \
-                "密码:" 3 1 "" 3 10 40 40 0
+                --title "SOCKS5 配置"
+                --extra-button --extra-label "Previous"
+                --mixedform "请输入 SOCKS5 认证信息：" 15 60 5
+                "地址:" 1 1 "$SOCKS5_ADDR" 1 10 40 40 0
+                "用户:" 2 1 "$SOCKS5_USER" 2 10 40 40 0
+                "密码:" 3 1 "$SOCKS5_PASS" 3 10 40 40 0
             )
-            result=$(dialog "${dialog_args[@]}" 3>&1 1>&2 2>&3)
-            SOCKS5_ADDR=$(sed -n '1p' <<< $result)
-            SOCKS5_USER=$(sed -n '2p' <<< $result)
-            SOCKS5_PASS=$(sed -n '3p' <<< $result)
-            if [ -z "$SOCKS5_USER" ] || [ -z "$SOCKS5_PASS" ]; then
-                dialog --msgbox "必须输入认证信息以启用Socks5" 7 50
-            else
-                break
+            local s5_result s5_status
+            run_menu_dialog s5_result "${dialog_args[@]}"
+            s5_status=$?
+            if [ $s5_status -eq 3 ]; then
+                return
+            elif [ $s5_status -eq 255 ]; then
+                continue
             fi
+            SOCKS5_ADDR=$(sed -n '1p' <<< "$s5_result")
+            SOCKS5_USER=$(sed -n '2p' <<< "$s5_result")
+            SOCKS5_PASS=$(sed -n '3p' <<< "$s5_result")
+            if [ -z "$SOCKS5_USER" ] || [ -z "$SOCKS5_PASS" ]; then
+                show_error "必须输入认证信息以启用 Socks5。"
+                continue
+            fi
+            break
+        elif [ $yn_status -eq 255 ]; then
+            continue
         else
             ENABLE_SOCKS5="false"
             break
@@ -253,62 +321,95 @@ v2ray_config_menu() {
 }
 
 warp_config_menu() {
-    WARP_KEY=${1:-""}
+    WARP_KEY=${1:-"$WARP_KEY"}
     if [[ $DEPLOY_CHOICES == *"$WARP"* ]]; then
-        dialog_args=(
-            --title "Warp 配置" \
-            --extra-button --extra-label "Previous" \
-            --mixedform "请输入环境配置信息：" 15 60 5 \
-            "Warp 密钥:" 1 1 "$WARP_KEY" 1 12 40 40 0
-        )
-        result=$(dialog "${dialog_args[@]}" 3>&1 1>&2 2>&3)
-        exit_status=$?
-        exit_operation $exit_status
+        while true; do
+            dialog_args=(
+                --title "Warp 配置"
+                --extra-button --extra-label "Previous"
+                --mixedform "请输入环境配置信息：" 15 60 5
+                "Warp 密钥:" 1 1 "$WARP_KEY" 1 12 40 40 0
+            )
+            local result status
+            run_menu_dialog result "${dialog_args[@]}"
+            status=$?
+            if [ $status -eq 3 ]; then
+                return
+            elif [ $status -eq 255 ]; then
+                continue
+            fi
+            WARP_KEY=$(sed -n '1p' <<< "$result")
+            break
+        done
     fi
-    WARP_KEY=$(sed -n '1p' <<< $result)
     next_menu
 }
 
 smokeping_config_menu() {
-    MASTER_URL=${1:-""}
-    SHARED_SECRET=${1:-""}
+    HOST_NAME=${1:-"$HOST_NAME"}
+    MASTER_URL=${2:-"$MASTER_URL"}
+    SHARED_SECRET=${3:-"$SHARED_SECRET"}
     if [[ $DEPLOY_CHOICES == *"$SMOKEPING"* ]]; then
-        dialog_args=(
-            --title "Smokeping 配置" \
-            --extra-button --extra-label "Previous" \
-            --mixedform "请输入环境配置信息：" 15 60 5 \
-            "本地主机名:" 1 1 "$HOST_NAME" 1 14 40 40 0 \
-            "Master 地址:" 2 1 "$MASTER_URL" 2 14 40 40 0 \
-            "Master 密钥:" 3 1 "$SHARED_SECRET" 3 14 40 40 0
-        )
-        result=$(dialog "${dialog_args[@]}" 3>&1 1>&2 2>&3)
-        exit_status=$?
-        exit_operation $exit_status
+        while true; do
+            dialog_args=(
+                --title "Smokeping 配置"
+                --extra-button --extra-label "Previous"
+                --mixedform "请输入环境配置信息：" 15 60 5
+                "本地主机名:" 1 1 "$HOST_NAME" 1 14 40 40 0
+                "Master 地址:" 2 1 "$MASTER_URL" 2 14 40 40 0
+                "Master 密钥:" 3 1 "$SHARED_SECRET" 3 14 40 40 0
+            )
+            local result status
+            run_menu_dialog result "${dialog_args[@]}"
+            status=$?
+            if [ $status -eq 3 ]; then
+                return
+            elif [ $status -eq 255 ]; then
+                continue
+            fi
+            HOST_NAME=$(sed -n '1p' <<< "$result")
+            MASTER_URL=$(sed -n '2p' <<< "$result")
+            SHARED_SECRET=$(sed -n '3p' <<< "$result")
+            if [ -z "$HOST_NAME" ]; then
+                show_error "本地主机名为必填项。"
+                continue
+            fi
+            if [[ -n "$MASTER_URL" ]] && [ -z "$SHARED_SECRET" ]; then
+                show_error "当配置 Master 地址时，必须同时填写 Master 密钥。"
+                continue
+            fi
+            break
+        done
     fi
-    HOST_NAME=$(sed -n '1p' <<< $result)
-    MASTER_URL=$(sed -n '2p' <<< $result)
-    SHARED_SECRET=$(sed -n '3p' <<< $result)
     next_menu
 }
 
 sysctl_menu() {
     while true; do
-        dialog --clear \
+        run_yesno_with_prev --clear \
             --title "优化 sysctl.conf" \
             --extra-button --extra-label "Previous" \
             --yesno "是否优化 sysctl.conf?" 7 50
-
-        exit_status=$?
-        if [ $exit_status -eq 3 ] || [ $exit_status -eq 255 ]; then
-            exit_operation $exit_status
-        else
-            SYSCTL_OPTIMIZE=$exit_status
+        status=$?
+        if [ $status -eq 0 ]; then
+            SYSCTL_OPTIMIZE=0
+        elif [ $status -eq 1 ]; then
+            SYSCTL_OPTIMIZE=1
+        elif [ $status -eq 3 ]; then
+            return
+        elif [ $status -eq 255 ]; then
+            continue
         fi
 
-        dialog --yesno "确认开始部署？" 7 50
-        if [ $? -eq 0 ]; then
+        run_prompt_dialog _ --yesno "确认开始部署？" 7 50
+        dstatus=$?
+        if [ $dstatus -eq 0 ]; then
             deploy
             break
+        elif [ $dstatus -eq 255 ]; then
+            continue
+        else
+            continue
         fi
     done
 }
@@ -323,9 +424,9 @@ previous_menu() {
     case $PREVIOUS_MENU in
         1) main_menu ;;
         2) deploy_menu ;;
-        3) v2ray_config_menu $TIMEZONE $DOMAIN ;;
+        3) v2ray_config_menu $TIMEZONE $PRX_DOMAIN $CFG_DOMAIN ;;
         4) warp_config_menu $WARP_KEY ;;
-        5) smokeping_config_menu $MASTER_URL $SHARED_SECRET ;;
+        5) smokeping_config_menu $HOST_NAME $MASTER_URL $SHARED_SECRET ;;
         6) sysctl_menu ;;
     esac
 }
@@ -337,9 +438,9 @@ next_menu() {
     case $NEXT_MENU in
         1) main_menu ;;
         2) deploy_menu ;;
-        3) v2ray_config_menu $TIMEZONE $DOMAIN ;;
+        3) v2ray_config_menu $TIMEZONE $PRX_DOMAIN $CFG_DOMAIN ;;
         4) warp_config_menu $WARP_KEY ;;
-        5) smokeping_config_menu $MASTER_URL $SHARED_SECRET ;;
+        5) smokeping_config_menu $HOST_NAME $MASTER_URL $SHARED_SECRET ;;
         6) sysctl_menu ;;
     esac
 }
@@ -358,7 +459,7 @@ exit_operation() {
                 clear
                 exit 0
             else
-                break
+                return
             fi
     esac
 }
@@ -1286,13 +1387,13 @@ output_v2ray_config() {
         echo ""
         echo "安装脚本已移动至容器配置目录：${pwd}"
         echo "V2Ray 配置："
-        printf "+--------------+-%-${max_len}s-+\n" | sed "s/ /-/g"
+        printf "+--------------+-%-${max_len}s-\n" | sed "s/ /-/g"
         printf "| %-12s | %-${max_len}s |\n" "Domain:" "${PRX_DOMAIN}"
         printf "| %-12s | %-${max_len}s |\n" "Protocol:" "tcp / grpc"
         printf "| %-12s | %-${max_len}s |\n" "UUID:" "${UUID}"
         printf "| %-12s | %-${max_len}s |\n" "ServiceName:" "${SERVICE_NAME}"
         printf "| %-12s | %-${max_len}s |\n" "TLS:" "Yes"
-        printf "+--------------+-%-${max_len}s-+\n" | sed "s/ /-/g"
+        printf "+--------------+-%-${max_len}s-\n" | sed "s/ /-/g"
         echo ""
         if [[ -n "$CFG_DOMAIN" ]]; then
             echo "OpenVPN 配置导入/下载地址 https://${CFG_DOMAIN}/rest/GetUserlogin 导入"
