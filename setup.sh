@@ -739,6 +739,7 @@ services:
       - ipv6
     ports:
       - 443:443/tcp
+      - 4433:4433/tcp
       - 11443:443/tcp
     restart: unless-stopped
 
@@ -788,11 +789,11 @@ EOF
     if [[ "$DEPLOY_CHOICES" == *"$SS"* ]]; then
         cat <<- EOF >> docker-compose.yaml
   ss:
-    image: ghcr.io/pandaryshan/shadowsocks:latest
+    image: ghcr.io/pandaryshan/ss-rust:latest
     container_name: ss
     environment:
       - SERVER_PORT=8388
-      - METHOD="2022-blake3-chacha20-poly1305"
+      - METHOD=2022-blake3-chacha20-poly1305
       - PASSWORD=      # Optional
     networks:
       - ipv6
@@ -1158,28 +1159,10 @@ frontend tls-in
     tcp-request inspect-delay 5s
     tcp-request content accept if { req.ssl_hello_type 1 }
     tcp-request content accept if { req.payload(0,1) -m bin 05 }
-EOF
-
-    if [[ -n "$CFG_DOMAIN" ]]; then
-        cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
-    tcp-request content accept if { req.ssl_sni -i ${CFG_DOMAIN} }
-EOF
-    fi
-
-    cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
-    tcp-request content accept if { req.ssl_sni -i ${PRX_DOMAIN} }
+    tcp-request content accept if { req.ssl_sni -i ${PRX_DOMAIN} ${CFG_DOMAIN} }
     tcp-request content accept if !{ req.ssl_sni -m found }
     tcp-request content reject
 
-EOF
-
-    if [[ -n "$CFG_DOMAIN" ]]; then
-        cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
-    acl is_config req.ssl_sni -i ${CFG_DOMAIN}
-EOF
-    fi
-
-    cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
     acl is_allowed_domain req.ssl_sni -i ${PRX_DOMAIN} ${CFG_DOMAIN}
     acl is_socks req.payload(0,1) -m bin 05
     acl is_socks_port dst_port 4433
@@ -1190,7 +1173,7 @@ EOF
 
     if [[ "$DEPLOY_CHOICES" == *"$V2RAY"* ]]; then
         cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
-    use_backend v2ray_socks if is_socks
+    use_backend v2ray_socks if is_socks is_socks_port
     use_backend v2ray_tcp if is_allowed_domain !HTTP
 EOF
     fi
@@ -1201,14 +1184,8 @@ EOF
 EOF
     fi
 
-    if [[ -n "$CFG_DOMAIN" ]]; then
-        cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
-    use_backend nginx if is_allowed_domain HTTP
-EOF
-    fi
-
     cat <<-EOF >> ./config/haproxy/haproxy.tcp.cfg
-    # default_backend nginx
+    use_backend nginx if is_allowed_domain HTTP
 
 backend nginx
     server nginx nginx:443
@@ -1255,7 +1232,7 @@ server {
     listen [::]:80;
     server_name ${PRX_DOMAIN} ${CFG_DOMAIN};
     location / {
-        return 301 https://$host$request_uri;
+        return 301 https://\$host\$request_uri;
     }
 }
 
@@ -1263,15 +1240,14 @@ server {
     listen 443 ssl default_server;
     listen [::]:443 ssl default_server;
     server_name _;
+    include /config/nginx/ssl.conf;
     return 444;
 }
 
 server {
     listen 443 ssl;
     listen [::]:443 ssl;
-
     server_name ${PRX_DOMAIN} ${CFG_DOMAIN};
-
     include /config/nginx/ssl.conf;
 
     root /config/www;
