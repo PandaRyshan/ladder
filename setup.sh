@@ -209,8 +209,10 @@ deploy_menu() {
             --extra-button --extra-label "Previous" \
             --checklist "请使用空格选择至少一个选项：" 15 50 5 \
             $V2RAY "V2Ray" on \
+            $SS "Shadowsocks" off \
             $WARP "Warp" off \
             $OPENVPN "OpenVPN" off \
+            $GOST "Gost" off \
             $SMOKEPING "SmokePing" off \
             3>&1 1>&2 2>&3
 
@@ -737,6 +739,7 @@ services:
       - ipv6
     ports:
       - 443:443/tcp
+      - 11443:443/tcp
     restart: unless-stopped
 
   nginx:
@@ -777,6 +780,26 @@ EOF
       - ./config/certs/live/\${PRX_DOMAIN}:/etc/ssl/certs/v2ray
     networks:
       - ipv6
+    restart: unless-stopped
+
+EOF
+    fi
+
+    if [[ "$DEPLOY_CHOICES" == *"$SS"* ]]; then
+        cat <<- EOF >> docker-compose.yaml
+  ss:
+    image: ghcr.io/pandaryshan/shadowsocks:latest
+    container_name: ss
+    environment:
+      - SERVER_PORT=8388
+      - METHOD="2022-blake3-chacha20-poly1305"
+      - PASSWORD=      # Optional
+    networks:
+      - ipv6
+    ports:
+      - 17443:8388/tcp
+    volumes:
+      - ./config/ss:/etc/shadowsocks
     restart: unless-stopped
 
 EOF
@@ -1130,6 +1153,7 @@ defaults
 
 frontend tls-in
     bind :::443 v4v6
+    bind :::4433 v4v6
 
     tcp-request inspect-delay 5s
     tcp-request content accept if { req.ssl_hello_type 1 }
@@ -1156,40 +1180,35 @@ EOF
     fi
 
     cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
-    acl is_proxy req.ssl_sni -i ${PRX_DOMAIN}
+    acl is_allowed_domain req.ssl_sni -i ${PRX_DOMAIN} ${CFG_DOMAIN}
     acl is_socks req.payload(0,1) -m bin 05
-    acl is_h2 req.ssl_alpn -i h2
-    acl is_h1 req.ssl_alpn -i http/1.1
+    acl is_socks_port dst_port 4433
+    # acl is_http req.ssl_alpn -i http/1.1 h2
     acl has_sni req.ssl_sni -m found
 
 EOF
 
-    if [[ "$DEPLOY_CHOICES" == *"$SOCKS"* ]]; then
-        cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
-    use_backend v2ray_socks if is_socks
-EOF
-    fi
-
     if [[ "$DEPLOY_CHOICES" == *"$V2RAY"* ]]; then
         cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
-    use_backend v2ray_tcp if is_proxy !is_h1 !is_h2
+    use_backend v2ray_socks if is_socks
+    use_backend v2ray_tcp if is_allowed_domain !HTTP
 EOF
     fi
 
     if [[ "$DEPLOY_CHOICES" == *"$OPENVPN"* ]]; then
         cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
-    use_backend openvpn if !has_sni !is_h1 !is_h2
+    use_backend openvpn if !has_sni !HTTP
 EOF
     fi
 
     if [[ -n "$CFG_DOMAIN" ]]; then
         cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
-    use_backend nginx if is_config
+    use_backend nginx if is_allowed_domain HTTP
 EOF
     fi
 
     cat <<-EOF >> ./config/haproxy/haproxy.tcp.cfg
-    default_backend nginx
+    # default_backend nginx
 
 backend nginx
     server nginx nginx:443
@@ -1201,11 +1220,6 @@ EOF
 backend v2ray_tcp
     server v2ray v2ray:8001
 
-EOF
-    fi
-
-    if [[ "$DEPLOY_CHOICES" == *"$SOCKS"* ]]; then
-        cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
 backend v2ray_socks
     server v2ray v2ray:8002
 
@@ -1230,6 +1244,22 @@ nginx_config() {
 ## Version 2025/07/17 - https://github.com/linuxserver/docker-swag/blob/master/root/defaults/nginx/site-confs/default.conf.sample
 
 server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name _;
+    return 444;
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ${PRX_DOMAIN} ${CFG_DOMAIN};
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
     listen 443 ssl default_server;
     listen [::]:443 ssl default_server;
     server_name _;
@@ -1237,8 +1267,8 @@ server {
 }
 
 server {
-    listen 443 ssl default_server;
-    listen [::]:443 ssl default_server;
+    listen 443 ssl;
+    listen [::]:443 ssl;
 
     server_name ${PRX_DOMAIN} ${CFG_DOMAIN};
 
