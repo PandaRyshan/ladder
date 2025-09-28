@@ -65,6 +65,8 @@ V2RAY=1
 WARP=2
 OPENVPN=3
 SMOKEPING=4
+SS=5
+GOST=6
 
 main_menu() {
     MENU_HISTORY=($MAIN_MENU)
@@ -707,6 +709,10 @@ CFG_DOMAIN=${CFG_DOMAIN}
 # warp plus key
 WARP_KEY=${WARP_KEY}
 
+# openvpn
+FORWARD_PROXY_IPV4=
+FORWARD_PROXY_IPV6=
+
 # smokeping config
 HOST_NAME=${HOST_NAME}
 MASTER_URL=${MASTER_URL}
@@ -1231,6 +1237,7 @@ server {
     listen 80;
     listen [::]:80;
     server_name ${PRX_DOMAIN} ${CFG_DOMAIN};
+    include /config/nginx/ssl.conf;
     location / {
         return 301 https://\$host\$request_uri;
     }
