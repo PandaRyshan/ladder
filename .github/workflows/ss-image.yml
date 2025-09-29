@@ -1,11 +1,11 @@
-name: build_ss_rust_image
+name: build_ss_image
 
 on:
   push:
     branches:
       - 'main'
     paths:
-      - 'images/ss-rust/**'
+      - 'images/shadowsocks/**'
 
   workflow_dispatch:
 
@@ -29,13 +29,13 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       -
-        name: Build and push ss-rust
+        name: Build and push shadowsocks
         uses: docker/build-push-action@v5
         with:
-          context: ./images/ss-rust
+          context: ./images/shadowsocks
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: pandasrun/ss-rust:latest
+          tags: pandasrun/shadowsocks:latest
       -
         name: Login to GitHub Container Registry
         uses: docker/login-action@v3
@@ -47,7 +47,7 @@ jobs:
         name: Build and push to GitHub Container Registry
         uses: docker/build-push-action@v5
         with:
-          context: ./images/ss-rust
+          context: ./images/shadowsocks
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ghcr.io/${{ vars.REPO_OWNER_LOWER }}/ss-rust:latest
+          tags: ghcr.io/${{ vars.REPO_OWNER_LOWER }}/shadowsocks:latest

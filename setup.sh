@@ -795,7 +795,7 @@ EOF
     if [[ "$DEPLOY_CHOICES" == *"$SS"* ]]; then
         cat <<- EOF >> docker-compose.yaml
   ss:
-    image: ghcr.io/pandaryshan/ss-rust:latest
+    image: ghcr.io/pandaryshan/shadowsocks:latest
     container_name: ss
     environment:
       - SERVER_PORT=8388
