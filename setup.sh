@@ -651,7 +651,7 @@ EOF
 sysctl_config() {
     if [[ "$SYSCTL_OPTIMIZE" == 0 ]]; then
         echo "优化网络设置 Updating sysctl config..."
-        if ! grep -q "* soft nofile 51200" /etc/security/limits.conf; then
+        if ! grep -q '\* soft nofile 51200' /etc/security/limits.conf; then
             tee -a /etc/security/limits.conf <<- EOF
 * soft nofile 51200
 * hard nofile 51200
@@ -1105,7 +1105,7 @@ EOF
     cat <<- EOF >> ./config/v2ray/config.json
             {
                 "type": "field",
-                "inboundTag": ["tcp", "grpc", "quic"],
+                "inboundTag": ["tcp", "socks", "grpc", "quic"],
                 "outboundTag": "freedom"
             }
         ]
