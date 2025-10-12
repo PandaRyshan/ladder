@@ -672,8 +672,10 @@ CFG_DOMAIN=${CFG_DOMAIN}
 WARP_KEY=${WARP_KEY}
 
 # openvpn
-FORWARD_PROXY_IPV4=
-FORWARD_PROXY_IPV6=
+EXPOSE_PORT=
+FORWARD_GOST=
+FORWARD_IPV4=
+FORWARD_IPV6=
 
 # smokeping config
 HOST_NAME=${HOST_NAME}
@@ -800,8 +802,10 @@ EOF
     container_name: openvpn
     environment:
       - DOMAIN=\${PRX_DOMAIN}
-      - FORWARD_PROXY_IPV4=\${FORWARD_PROXY_IPV4}
-      - FORWARD_PROXY_IPV6=\${FORWARD_PROXY_IPV6}
+      - EXPOSE_PORT=8009
+      - FORWARD_GOST=\${FORWARD_GOST}
+      - FORWARD_IPV4=\${FORWARD_IPV4}
+      - FORWARD_IPV6=\${FORWARD_IPV6}
     volumes:
       - ./config/openvpn:/etc/openvpn
     devices:
@@ -809,8 +813,8 @@ EOF
     networks:
       - ipv6
     ports:
-      - 8009:8009/tcp
-      - 8009:8009/udp
+      - 8009:1194/tcp
+      - 8009:1194/udp
     sysctls:
       - net.ipv4.ip_forward=1
       - net.ipv6.conf.all.forwarding=1
