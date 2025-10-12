@@ -698,7 +698,7 @@ docker_compose_config() {
 services:
 
   haproxy:
-    image: ghcr.io/pandaryshan/haproxy:latest
+    image: haproxy:latest
     container_name: haproxy
     volumes:
       - ./config/haproxy/haproxy.tcp.cfg:/usr/local/etc/haproxy/haproxy.cfg
