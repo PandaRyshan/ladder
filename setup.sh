@@ -284,43 +284,6 @@ v2ray_config_menu() {
         break
     done
 
-    while true; do
-        local yn_status yn_result
-        run_prompt_dialog yn_result --defaultno --yesno "是否配置出站 socks5?" 7 50
-        yn_status=$?
-        if [ $yn_status -eq 0 ]; then
-            ENABLE_SOCKS5="true"
-            dialog_args=(
-                --title "SOCKS5 配置"
-                --extra-button --extra-label "Previous"
-                --mixedform "请输入 SOCKS5 认证信息：" 15 60 5
-                "地址:" 1 1 "$SOCKS5_ADDR" 1 10 40 40 0
-                "用户:" 2 1 "$SOCKS5_USER" 2 10 40 40 0
-                "密码:" 3 1 "$SOCKS5_PASS" 3 10 40 40 0
-            )
-            local s5_result s5_status
-            run_menu_dialog s5_result "${dialog_args[@]}"
-            s5_status=$?
-            if [ $s5_status -eq 3 ]; then
-                return
-            elif [ $s5_status -eq 255 ]; then
-                continue
-            fi
-            SOCKS5_ADDR=$(sed -n '1p' <<< "$s5_result")
-            SOCKS5_USER=$(sed -n '2p' <<< "$s5_result")
-            SOCKS5_PASS=$(sed -n '3p' <<< "$s5_result")
-            if [ -z "$SOCKS5_USER" ] || [ -z "$SOCKS5_PASS" ]; then
-                show_error "必须输入认证信息以启用 Socks5。"
-                continue
-            fi
-            break
-        elif [ $yn_status -eq 255 ]; then
-            continue
-        else
-            ENABLE_SOCKS5="false"
-            break
-        fi
-    done
     next_menu
 }
 
@@ -683,9 +646,8 @@ net.ipv4.tcp_max_syn_backlog = 8192
 
 net.core.rmem_max = 67108864
 net.core.wmem_max = 67108864
-net.ipv4.tcp_rmem = 4096 131072 8388608
-net.ipv4.tcp_wmem = 4096 87380 8388608
-#net.ipv4.tcp_wmem = 4096 65536 8388608
+net.ipv4.tcp_rmem = 4096 131072 12582912
+net.ipv4.tcp_wmem = 4096 87380 12582912
 net.ipv4.tcp_mem = 262144 393216 524288
 
 net.ipv4.ip_forward = 1
@@ -736,7 +698,7 @@ docker_compose_config() {
 services:
 
   haproxy:
-    image: haproxy:latest
+    image: ghcr.io/pandaryshan/haproxy:latest
     container_name: haproxy
     volumes:
       - ./config/haproxy/haproxy.tcp.cfg:/usr/local/etc/haproxy/haproxy.cfg
@@ -745,8 +707,7 @@ services:
       - ipv6
     ports:
       - 443:443/tcp
-      - 4433:4433/tcp
-      - 11443:443/tcp
+      - 8002:8002/tcp
     restart: unless-stopped
 
   nginx:
@@ -804,7 +765,7 @@ EOF
     networks:
       - ipv6
     ports:
-      - 17443:8388/tcp
+      - 8008:8388/tcp
     volumes:
       - ./config/ss:/etc/shadowsocks
     restart: unless-stopped
@@ -843,6 +804,8 @@ EOF
       - /dev/net/tun:/dev/net/tun
     networks:
       - ipv6
+    ports:
+      - 8009:8009
     sysctls:
       - net.ipv4.ip_forward=1
       - net.ipv6.conf.all.forwarding=1
@@ -864,7 +827,7 @@ EOF
       - ipv6
     command:
       -L "tcp://[::]:40000?sniffing=true&trpoxy=true&so_mark=100"
-      -F "socks5://v2ray:7799"
+      -F "socks5://v2ray:8003"
     restart: unless-stopped
 
 EOF
@@ -936,7 +899,7 @@ v2ray_config() {
     },
     "inbounds": [
         {
-            "tag": "tcp",
+            "tag": "tls",
             "protocol": "vmess",
             "listen": "0.0.0.0",
             "port": 8001,
@@ -949,25 +912,34 @@ v2ray_config() {
             },
             "streamSettings": {
                 "network": "tcp",
-                "security": "tls",
-                "tlsSettings": {
-                    "certificates": [
-                        {
-                            "certificateFile": "/etc/ssl/certs/v2ray/priv-fullchain-bundle.pem",
-                            "keyFile": "/etc/ssl/certs/v2ray/priv-fullchain-bundle.pem"
-                        }
-                    ]
-                }
+                "security": "tls"
+            }
+        },
+        {
+            "tag": "tcp",
+            "protocol": "vmess",
+            "listen": "0.0.0.0",
+            "port": 8002,
+            "settings": {
+                "clients": [
+                    {
+                        "id": "${UUID}"
+                    }
+                ]
+            },
+            "streamSettings": {
+                "network": "tcp",
+                "security": "none"
             }
         },
         {
             "tag": "socks",
             "protocol": "socks",
             "listen": "0.0.0.0",
-            "port": 8002,
+            "port": 8003,
             "settings": {
                 "address": "127.0.0.1",
-                "auth": "password",
+                "auth": "noauth",
                 "accounts": [
                     {
                         "user": "${SOCKS_SERVER_USER}",
@@ -1032,27 +1004,6 @@ EOF
                     {
                         "address": "warp",
                         "port": 40001
-                    }
-                ]
-            }
-        },
-EOF
-    fi
-
-    if [[ "$ENABLE_SOCKS5" == "true" ]]; then
-        cat <<- EOF >> ./config/v2ray/config.json
-        {
-            "tag": "socks",
-            "protocol": "socks",
-            "settings": {
-                "servers": [
-                    {
-                        "address": "${SOCKS5_ADDR}",
-                        "port": 443,
-                        "users": [{
-                            "user": "${SOCKS5_USER}",
-                            "pass": "${SOCKS5_PASS}"
-                        }]
                     }
                 ]
             }
@@ -1143,8 +1094,21 @@ global
     stats timeout 30s
     daemon
 
+    # set AEAD ciphers default
+    ssl-default-bind-ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384
+    ssl-default-bind-ciphersuites TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256
+
+    # disable SSLv3, TLSv1.0, TLSv1.1
     ssl-default-bind-options no-sslv3 no-tlsv10 no-tlsv11
-    ssl-server-verify none
+
+    # Disable this when use a low performance CPU or has too much connection
+    #ssl-server-verify none
+
+    # set DH length
+    tune.ssl.default-dh-param 2048
+
+    # certs base dir
+    crt-base /etc/ssl/certs
 
 defaults
     mode tcp
@@ -1159,34 +1123,33 @@ defaults
     timeout queue 1m
 
 frontend tls-in
-    bind :::443 v4v6
-    bind :::4433 v4v6
+    bind :::443 v4v6 ssl crt priv-fullchain-bundle.pem
+    bind :::8002 v4v6
 
     tcp-request inspect-delay 5s
     tcp-request content accept if { req.ssl_hello_type 1 }
-    tcp-request content accept if { req.payload(0,1) -m bin 05 }
+    # tcp-request content accept if { req.payload(0,1) -m bin 05 }
     tcp-request content accept if { req.ssl_sni -i ${PRX_DOMAIN} ${CFG_DOMAIN} }
     tcp-request content accept if !{ req.ssl_sni -m found }
     tcp-request content reject
 
     acl is_allowed_domain req.ssl_sni -i ${PRX_DOMAIN} ${CFG_DOMAIN}
-    acl is_socks req.payload(0,1) -m bin 05
-    acl is_socks_port dst_port 4433
-    # acl is_http req.ssl_alpn -i http/1.1 h2
+    acl is_tls_port dst_port 443
+    acl is_vmess_port dst_port 8002
     acl has_sni req.ssl_sni -m found
 
 EOF
 
     if [[ "$DEPLOY_CHOICES" == *"$V2RAY"* ]]; then
         cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
-    use_backend v2ray_socks if is_socks is_socks_port
-    use_backend v2ray_tcp if is_allowed_domain !HTTP
+    use_backend v2ray_tls if is_allowed_domain is_tls_port !HTTP
+    use_backend v2ray_tcp if is_allowed_domain is_vmess_port !HTTP
 EOF
     fi
 
     if [[ "$DEPLOY_CHOICES" == *"$OPENVPN"* ]]; then
         cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
-    use_backend openvpn if !has_sni !HTTP
+    use_backend openvpn if !has_sni is_tls_port !HTTP
 EOF
     fi
 
@@ -1200,10 +1163,10 @@ EOF
 
     if [[ "$DEPLOY_CHOICES" == *"$V2RAY"* ]]; then
         cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
-backend v2ray_tcp
+backend v2ray_tls
     server v2ray v2ray:8001
 
-backend v2ray_socks
+backend v2ray_tcp
     server v2ray v2ray:8002
 
 EOF
@@ -1237,25 +1200,24 @@ server {
     listen 80;
     listen [::]:80;
     server_name ${PRX_DOMAIN} ${CFG_DOMAIN};
-    include /config/nginx/ssl.conf;
     location / {
         return 301 https://\$host\$request_uri;
     }
 }
 
 server {
-    listen 443 ssl default_server;
-    listen [::]:443 ssl default_server;
+    listen 443 default_server;
+    listen [::]:443 default_server;
     server_name _;
-    include /config/nginx/ssl.conf;
+    # include /config/nginx/ssl.conf;
     return 444;
 }
 
 server {
-    listen 443 ssl;
-    listen [::]:443 ssl;
+    listen 443;
+    listen [::]:443;
     server_name ${PRX_DOMAIN} ${CFG_DOMAIN};
-    include /config/nginx/ssl.conf;
+    # include /config/nginx/ssl.conf;
 
     root /config/www;
     index index.html index.htm;
@@ -1409,7 +1371,7 @@ output_v2ray_config() {
         printf "+--------------+-%-${max_len}s-\n" | sed "s/ /-/g"
         echo ""
         if [[ -n "$CFG_DOMAIN" ]]; then
-            echo "OpenVPN 配置导入/下载地址 https://${CFG_DOMAIN}/rest/GetUserlogin 导入"
+            echo "OpenVPN 配置导入/下载地址 https://${PRX_DOMAIN}/ 导入"
         else
             echo "OpenVPN 配置下载: https://${PRX_DOMAIN}/conf/<your-user-name>.ovpn"
         fi
