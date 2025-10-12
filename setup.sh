@@ -709,8 +709,6 @@ services:
       - 443:443/tcp
       - 8001:443/tcp
       - 8001:443/udp
-      - 8002:8002/tcp
-      - 8002:8002/udp
     restart: unless-stopped
 
   nginx:
@@ -832,7 +830,7 @@ EOF
       - ipv6
     command:
       -L "tcp://[::]:40000?sniffing=true&trpoxy=true&so_mark=100"
-      -F "socks5://v2ray:8003"
+      -F "socks5://v2ray:8002"
     restart: unless-stopped
 
 EOF
@@ -904,27 +902,10 @@ v2ray_config() {
     },
     "inbounds": [
         {
-            "tag": "tls",
-            "protocol": "vmess",
-            "listen": "0.0.0.0",
-            "port": 8001,
-            "settings": {
-                "clients": [
-                    {
-                        "id": "${UUID}"
-                    }
-                ]
-            },
-            "streamSettings": {
-                "network": "tcp",
-                "security": "tls"
-            }
-        },
-        {
             "tag": "tcp",
             "protocol": "vmess",
             "listen": "0.0.0.0",
-            "port": 8002,
+            "port": 8001,
             "settings": {
                 "clients": [
                     {
@@ -941,7 +922,7 @@ v2ray_config() {
             "tag": "socks",
             "protocol": "socks",
             "listen": "0.0.0.0",
-            "port": 8003,
+            "port": 8002,
             "settings": {
                 "address": "127.0.0.1",
                 "auth": "noauth",
@@ -957,7 +938,7 @@ v2ray_config() {
             "tag": "grpc",
             "protocol": "vmess",
             "listen": "0.0.0.0",
-            "port": 8004,
+            "port": 8003,
             "settings": {
                 "clients": [
                     {
@@ -976,7 +957,7 @@ v2ray_config() {
             "tag": "quic",
             "protocol": "vmess",
             "listen": "0.0.0.0",
-            "port": 8005,
+            "port": 8004,
             "settings": {
                 "clients": [
                     {
@@ -1061,7 +1042,7 @@ EOF
     cat <<- EOF >> ./config/v2ray/config.json
             {
                 "type": "field",
-                "inboundTag": ["tls", "tcp", "socks", "grpc", "quic"],
+                "inboundTag": ["tcp", "socks", "grpc", "quic"],
                 "outboundTag": "freedom"
             }
         ]
