@@ -709,6 +709,8 @@ services:
       - 443:443/tcp
       - 8001:443/tcp
       - 8001:443/udp
+      - 8002:8002/tcp
+      - 8002:8002/udp
     restart: unless-stopped
 
   nginx:
@@ -830,7 +832,7 @@ EOF
       - ipv6
     command:
       -L "tcp://[::]:40000?sniffing=true&trpoxy=true&so_mark=100"
-      -F "socks5://v2ray:8002"
+      -F "socks5://v2ray:8003"
     restart: unless-stopped
 
 EOF
@@ -905,7 +907,7 @@ v2ray_config() {
             "tag": "tcp",
             "protocol": "vmess",
             "listen": "0.0.0.0",
-            "port": 8001,
+            "port": 8002,
             "settings": {
                 "clients": [
                     {
@@ -922,7 +924,7 @@ v2ray_config() {
             "tag": "socks",
             "protocol": "socks",
             "listen": "0.0.0.0",
-            "port": 8002,
+            "port": 8003,
             "settings": {
                 "address": "127.0.0.1",
                 "auth": "noauth",
@@ -938,7 +940,7 @@ v2ray_config() {
             "tag": "grpc",
             "protocol": "vmess",
             "listen": "0.0.0.0",
-            "port": 8003,
+            "port": 8004,
             "settings": {
                 "clients": [
                     {
@@ -957,7 +959,7 @@ v2ray_config() {
             "tag": "quic",
             "protocol": "vmess",
             "listen": "0.0.0.0",
-            "port": 8004,
+            "port": 8005,
             "settings": {
                 "clients": [
                     {
@@ -1123,24 +1125,16 @@ frontend tls-in
 
     acl is_allowed_tcp req.ssl_sni -i ${PRX_DOMAIN} ${CFG_DOMAIN}
     acl is_allowed_tls ssl_fc_sni -i ${PRX_DOMAIN} ${CFG_DOMAIN}
-    acl is_tls_port dst_port 443
-    acl is_vmess_port dst_port 8002
     acl has_sni req.ssl_sni -m found
 
 EOF
 
     if [[ "$DEPLOY_CHOICES" == *"$V2RAY"* ]]; then
         cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
-    use_backend v2ray_tls if is_allowed_tls is_tls_port !HTTP
-    use_backend v2ray_tcp if is_allowed_tcp is_vmess_port !HTTP
+    use_backend v2ray_tcp if is_allowed_tcp !HTTP
+    use_backend v2ray_tcp if is_allowed_tls !HTTP
 EOF
     fi
-
-#     if [[ "$DEPLOY_CHOICES" == *"$OPENVPN"* ]]; then
-#         cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
-#     use_backend openvpn if !has_sni is_tls_port !HTTP
-# EOF
-#     fi
 
     cat <<-EOF >> ./config/haproxy/haproxy.tcp.cfg
     use_backend nginx if is_allowed_tls HTTP
@@ -1152,21 +1146,12 @@ EOF
 
     if [[ "$DEPLOY_CHOICES" == *"$V2RAY"* ]]; then
         cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
-backend v2ray_tls
-    server v2ray v2ray:8001
 
 backend v2ray_tcp
     server v2ray v2ray:8002
 
 EOF
     fi
-
-#     if [[ "$DEPLOY_CHOICES" == *"$OPENVPN"* ]]; then
-#         cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
-# backend openvpn
-#     server openvpn openvpn:443
-# EOF
-#     fi
 
 }
 
