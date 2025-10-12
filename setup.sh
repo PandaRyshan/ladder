@@ -707,7 +707,10 @@ services:
       - ipv6
     ports:
       - 443:443/tcp
+      - 8001:443/tcp
+      - 8001:443/udp
       - 8002:8002/tcp
+      - 8002:8002/udp
     restart: unless-stopped
 
   nginx:
@@ -766,6 +769,7 @@ EOF
       - ipv6
     ports:
       - 8008:8388/tcp
+      - 8008:8388/udp
     volumes:
       - ./config/ss:/etc/shadowsocks
     restart: unless-stopped
@@ -805,7 +809,8 @@ EOF
     networks:
       - ipv6
     ports:
-      - 8009:8009
+      - 8009:8009/tcp
+      - 8009:8009/udp
     sysctls:
       - net.ipv4.ip_forward=1
       - net.ipv6.conf.all.forwarding=1
@@ -952,7 +957,7 @@ v2ray_config() {
             "tag": "grpc",
             "protocol": "vmess",
             "listen": "0.0.0.0",
-            "port": 8003,
+            "port": 8004,
             "settings": {
                 "clients": [
                     {
@@ -971,7 +976,7 @@ v2ray_config() {
             "tag": "quic",
             "protocol": "vmess",
             "listen": "0.0.0.0",
-            "port": 8004,
+            "port": 8005,
             "settings": {
                 "clients": [
                     {
@@ -1056,7 +1061,7 @@ EOF
     cat <<- EOF >> ./config/v2ray/config.json
             {
                 "type": "field",
-                "inboundTag": ["tcp", "socks", "grpc", "quic"],
+                "inboundTag": ["tls", "tcp", "socks", "grpc", "quic"],
                 "outboundTag": "freedom"
             }
         ]
@@ -1128,12 +1133,15 @@ frontend tls-in
 
     tcp-request inspect-delay 5s
     tcp-request content accept if { req.ssl_hello_type 1 }
-    # tcp-request content accept if { req.payload(0,1) -m bin 05 }
     tcp-request content accept if { req.ssl_sni -i ${PRX_DOMAIN} ${CFG_DOMAIN} }
+    tcp-request content accept if { ssl_fc_sni -i ${PRX_DOMAIN} ${CFG_DOMAIN} }
     tcp-request content accept if !{ req.ssl_sni -m found }
+    tcp-request content accept if !{ ssl_fc_sni -m found }
+    # tcp-request content accept if { req.payload(0,1) -m bin 05 }
     tcp-request content reject
 
-    acl is_allowed_domain req.ssl_sni -i ${PRX_DOMAIN} ${CFG_DOMAIN}
+    acl is_allowed_tcp req.ssl_sni -i ${PRX_DOMAIN} ${CFG_DOMAIN}
+    acl is_allowed_tls ssl_fc_sni -i ${PRX_DOMAIN} ${CFG_DOMAIN}
     acl is_tls_port dst_port 443
     acl is_vmess_port dst_port 8002
     acl has_sni req.ssl_sni -m found
@@ -1142,19 +1150,19 @@ EOF
 
     if [[ "$DEPLOY_CHOICES" == *"$V2RAY"* ]]; then
         cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
-    use_backend v2ray_tls if is_allowed_domain is_tls_port !HTTP
-    use_backend v2ray_tcp if is_allowed_domain is_vmess_port !HTTP
+    use_backend v2ray_tls if is_allowed_tls is_tls_port !HTTP
+    use_backend v2ray_tcp if is_allowed_tcp is_vmess_port !HTTP
 EOF
     fi
 
-    if [[ "$DEPLOY_CHOICES" == *"$OPENVPN"* ]]; then
-        cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
-    use_backend openvpn if !has_sni is_tls_port !HTTP
-EOF
-    fi
+#     if [[ "$DEPLOY_CHOICES" == *"$OPENVPN"* ]]; then
+#         cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
+#     use_backend openvpn if !has_sni is_tls_port !HTTP
+# EOF
+#     fi
 
     cat <<-EOF >> ./config/haproxy/haproxy.tcp.cfg
-    use_backend nginx if is_allowed_domain HTTP
+    use_backend nginx if is_allowed_tls HTTP
 
 backend nginx
     server nginx nginx:443
@@ -1172,12 +1180,12 @@ backend v2ray_tcp
 EOF
     fi
 
-    if [[ "$DEPLOY_CHOICES" == *"$OPENVPN"* ]]; then
-        cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
-backend openvpn
-    server openvpn openvpn:443
-EOF
-    fi
+#     if [[ "$DEPLOY_CHOICES" == *"$OPENVPN"* ]]; then
+#         cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
+# backend openvpn
+#     server openvpn openvpn:443
+# EOF
+#     fi
 
 }
 
