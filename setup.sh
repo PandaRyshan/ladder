@@ -142,15 +142,10 @@ EOF
                 mv ./config/v2ray/config.json.tmp ./config/v2ray/config.json
                 echo "重启 V2Ray 服务 Restarting V2Ray service..."
                 docker compose restart v2ray 2>&1
-                CFG_DOMAIN=$(cat .env | grep CFG_DOMAIN | cut -d '=' -f2)
                 echo ""
                 echo "用户 $USERNAME 添加成功"
-                echo "UUID: $new_user_uuid"
-                if [[ -n "$CFG_DOMAIN" ]]; then
-                    echo "OpenVPN 配置导入/下载: https://$CFG_DOMAIN/rest/GetUserlogin"
-                else
-                    echo "OpenVPN 配置下载: https://${PRX_DOMAIN}/conf/<your-user-name>.ovpn"
-                fi
+                echo "UUID: $UUID"
+                echo "OpenVPN 配置下载: https://${PRX_DOMAIN}/conf/<your-user-name>.ovpn"
                 echo "$USERNAME:$PASSWORD:$UUID" >> users.txt
             } | dialog --title "创建用户..." --programbox 20 70
             break
@@ -245,7 +240,7 @@ deploy_menu() {
 v2ray_config_menu() {
     TIMEZONE=${1:-"${TIMEZONE:-Asia/Shanghai}"}
     PRX_DOMAIN=${2:-"${PRX_DOMAIN:-}"}
-    CFG_DOMAIN=${3:-"${CFG_DOMAIN:-}"}
+    EXT_DOMAIN=${3:-"${EXT_DOMAIN:-}"}
 
     while true; do
         dialog_args=(
@@ -254,7 +249,7 @@ v2ray_config_menu() {
             --mixedform "请输入环境配置信息：" 15 60 5
             "时区:" 1 1 "$TIMEZONE" 1 11 40 40 0
             "代理域名:" 2 1 "$PRX_DOMAIN" 2 11 40 40 0
-            "配置域名:" 3 1 "$CFG_DOMAIN" 3 11 40 40 0
+            "额外域名:" 3 1 "$EXT_DOMAIN" 3 11 40 40 0
         )
         local result status
         run_menu_dialog result "${dialog_args[@]}"
@@ -267,7 +262,7 @@ v2ray_config_menu() {
 
         TIMEZONE=$(sed -n '1p' <<< "$result")
         PRX_DOMAIN=$(sed -n '2p' <<< "$result")
-        CFG_DOMAIN=$(sed -n '3p' <<< "$result")
+        EXT_DOMAIN=$(sed -n '3p' <<< "$result")
 
         if [ -z "$TIMEZONE" ]; then
             show_error "时区必须填写。"
@@ -277,8 +272,8 @@ v2ray_config_menu() {
             show_error "代理域名格式不正确，请输入有效域名（例如：example.com）。"
             continue
         fi
-        if [[ -n "$CFG_DOMAIN" ]] && ! validate_domain "$CFG_DOMAIN"; then
-            show_error "配置域名格式不正确，请输入有效域名。"
+        if [[ -n "$EXT_DOMAIN" ]] && ! validate_domain "$EXT_DOMAIN"; then
+            show_error "额外域名格式不正确，请输入有效域名。"
             continue
         fi
         break
@@ -391,9 +386,9 @@ previous_menu() {
     case $PREVIOUS_MENU in
         1) main_menu ;;
         2) deploy_menu ;;
-        3) v2ray_config_menu $TIMEZONE $PRX_DOMAIN $CFG_DOMAIN ;;
-        4) warp_config_menu $WARP_KEY ;;
-        5) smokeping_config_menu $HOST_NAME $MASTER_URL $SHARED_SECRET ;;
+        3) v2ray_config_menu "$TIMEZONE" "$PRX_DOMAIN" "$EXT_DOMAIN" ;;
+        4) warp_config_menu "$WARP_KEY" ;;
+        5) smokeping_config_menu "$HOST_NAME" "$MASTER_URL" "$SHARED_SECRET" ;;
         6) sysctl_menu ;;
     esac
 }
@@ -405,9 +400,9 @@ next_menu() {
     case $NEXT_MENU in
         1) main_menu ;;
         2) deploy_menu ;;
-        3) v2ray_config_menu $TIMEZONE $PRX_DOMAIN $CFG_DOMAIN ;;
-        4) warp_config_menu $WARP_KEY ;;
-        5) smokeping_config_menu $HOST_NAME $MASTER_URL $SHARED_SECRET ;;
+        3) v2ray_config_menu "$TIMEZONE" "$PRX_DOMAIN" "$EXT_DOMAIN" ;;
+        4) warp_config_menu "$WARP_KEY" ;;
+        5) smokeping_config_menu "$HOST_NAME" "$MASTER_URL" "$SHARED_SECRET" ;;
         6) sysctl_menu ;;
     esac
 }
@@ -572,7 +567,7 @@ EOF
         exit 1
     fi
 
-    usermod -a -G docker $USER
+    usermod -a -G docker "$USER"
     enable_docker_service
 }
 
@@ -666,7 +661,7 @@ env_config() {
     cat <<- EOF > .env
 TIMEZONE=${TIMEZONE}
 PRX_DOMAIN=${PRX_DOMAIN}
-CFG_DOMAIN=${CFG_DOMAIN}
+EXT_DOMAIN=${EXT_DOMAIN}
 
 # warp plus key
 WARP_KEY=${WARP_KEY}
@@ -709,8 +704,8 @@ services:
       - ipv6
     ports:
       - 443:443/tcp
-      - 8001:443/tcp
-      - 8001:443/udp
+      - 8001:8001/tcp
+      - 8001:8001/udp
       - 8002:8002/tcp
       - 8002:8002/udp
     restart: unless-stopped
@@ -725,7 +720,7 @@ services:
       - PGID=99
       - TZ=\${TIMEZONE}
       - URL=\${PRX_DOMAIN}
-      - EXTRA_DOMAINS=\${CFG_DOMAIN}
+      - EXTRA_DOMAINS=\${EXT_DOMAIN}
       - VALIDATION=http
       - EMAIL=\${EMAIL}
     volumes:
@@ -907,6 +902,31 @@ v2ray_config() {
         "clientIp": "${PUBLIC_IP}"
     },
     "inbounds": [
+        {
+            "tag": "tcp",
+            "protocol": "vmess",
+            "listen": "0.0.0.0",
+            "port": 8001,
+            "settings": {
+                "clients": [
+                    {
+                        "id": "${UUID}"
+                    }
+                ]
+            },
+            "streamSettings": {
+                "network": "tcp",
+                "security": "tls",
+                "tlsSettings": {
+                    "certificates": [
+                        {
+                            "certificateFile": "/etc/ssl/certs/v2ray/priv-fullchain-bundle.pem",
+                            "keyFile": "/etc/ssl/certs/v2ray/priv-fullchain-bundle.pem"
+                        }
+                    ]
+                }
+            }
+        },
         {
             "tag": "tcp",
             "protocol": "vmess",
@@ -1116,46 +1136,59 @@ defaults
 
 frontend tls-in
     bind :::443 v4v6 ssl crt priv-fullchain-bundle.pem
-    bind :::8002 v4v6
 
-    tcp-request inspect-delay 5s
-    tcp-request content accept if { req.ssl_hello_type 1 }
-    tcp-request content accept if { req.ssl_sni -i ${PRX_DOMAIN} ${CFG_DOMAIN} }
-    tcp-request content accept if { ssl_fc_sni -i ${PRX_DOMAIN} ${CFG_DOMAIN} }
-    tcp-request content accept if !{ req.ssl_sni -m found }
+    tcp-request content accept if { ssl_fc_sni -i ${PRX_DOMAIN} ${EXT_DOMAIN} }
     tcp-request content accept if !{ ssl_fc_sni -m found }
-    # tcp-request content accept if { req.payload(0,1) -m bin 05 }
     tcp-request content reject
 
-    acl is_allowed_tcp req.ssl_sni -i ${PRX_DOMAIN} ${CFG_DOMAIN}
-    acl is_allowed_tls ssl_fc_sni -i ${PRX_DOMAIN} ${CFG_DOMAIN}
-    acl has_sni req.ssl_sni -m found
-
+    acl is_allowed_tls ssl_fc_sni -i ${PRX_DOMAIN} ${EXT_DOMAIN}
 EOF
 
     if [[ "$DEPLOY_CHOICES" == *"$V2RAY"* ]]; then
         cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
-    use_backend v2ray_tcp if is_allowed_tcp !HTTP
     use_backend v2ray_tcp if is_allowed_tls !HTTP
 EOF
     fi
 
-    cat <<-EOF >> ./config/haproxy/haproxy.tcp.cfg
+    cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
     use_backend nginx if is_allowed_tls HTTP
-
-backend nginx
-    server nginx nginx:443
 
 EOF
 
     if [[ "$DEPLOY_CHOICES" == *"$V2RAY"* ]]; then
         cat <<- EOF >> ./config/haproxy/haproxy.tcp.cfg
+frontend tcp-in
+    bind :::8001 v4v6
+    bind :::8002 v4v6
+
+    tcp-request inspect-delay 5s
+    tcp-request content accept if { req.ssl_hello_type 1 }
+    tcp-request content accept if { req.ssl_sni -i ${PRX_DOMAIN} ${EXT_DOMAIN} }
+    # tcp-request content accept if !{ req.ssl_sni -m found }
+    # tcp-request content accept if { req.payload(0,1) -m bin 05 }
+    tcp-request content reject
+
+    acl is_vmess_tls_port dst_port 8001
+    acl is_vmess_tcp_port dst_port 8002
+    acl is_allowed_tcp req.ssl_sni -i ${PRX_DOMAIN} ${EXT_DOMAIN}
+
+    use_backend v2ray_tls if is_vmess_tls_port is_allowed_tcp !HTTP
+    use_backend v2ray_tcp if is_vmess_tcp_port is_allowed_tcp !HTTP
+
+backend v2ray_tls
+    server v2ray v2ray:8001
 
 backend v2ray_tcp
     server v2ray v2ray:8002
 
 EOF
     fi
+
+    cat <<-EOF >> ./config/haproxy/haproxy.tcp.cfg
+backend nginx
+    server nginx nginx:443
+
+EOF
 
 }
 
@@ -1177,7 +1210,7 @@ server {
 server {
     listen 80;
     listen [::]:80;
-    server_name ${PRX_DOMAIN} ${CFG_DOMAIN};
+    server_name ${PRX_DOMAIN} ${EXT_DOMAIN};
     location / {
         return 301 https://\$host\$request_uri;
     }
@@ -1194,7 +1227,7 @@ server {
 server {
     listen 443;
     listen [::]:443;
-    server_name ${PRX_DOMAIN} ${CFG_DOMAIN};
+    server_name ${PRX_DOMAIN} ${EXT_DOMAIN};
     # include /config/nginx/ssl.conf;
 
     root /config/www;
@@ -1326,10 +1359,10 @@ down_containers() {
 }
 
 prepare_workdir() {
-    cd "$(dirname "$0")"
+    cd "$(dirname "$0")" || exit
     if [[ "$(basename "$PWD")" != "ladder" ]]; then
         echo "创建 ladder 工作目录..."
-        mkdir -p ./ladder && cd ./ladder
+        mkdir -p ./ladder && cd ./ladder || exit
         mv -f ../setup.sh .
     fi
 }
@@ -1338,7 +1371,7 @@ output_v2ray_config() {
     max_len=$(echo -e "${PRX_DOMAIN}\n${UUID}\n${SERVICE_NAME}" | wc -L)
     {
         echo ""
-        echo "安装脚本已移动至容器配置目录：${pwd}"
+        echo "安装脚本已移动至容器配置目录：$(pwd)"
         echo "V2Ray 配置："
         printf "+--------------+-%-${max_len}s-\n" | sed "s/ /-/g"
         printf "| %-12s | %-${max_len}s |\n" "Domain:" "${PRX_DOMAIN}"
@@ -1348,12 +1381,8 @@ output_v2ray_config() {
         printf "| %-12s | %-${max_len}s |\n" "TLS:" "Yes"
         printf "+--------------+-%-${max_len}s-\n" | sed "s/ /-/g"
         echo ""
-        if [[ -n "$CFG_DOMAIN" ]]; then
-            echo "OpenVPN 配置导入/下载地址 https://${PRX_DOMAIN}/ 导入"
-        else
-            echo "OpenVPN 配置下载: https://${PRX_DOMAIN}/conf/<your-user-name>.ovpn"
-        fi
-    } | tee $(pwd)/info.txt
+        echo "OpenVPN 配置下载: https://${PRX_DOMAIN}/conf/<your-user-name>.ovpn"
+    } | tee "$(pwd)/info.txt"
 }
 
 # Main 主程序
@@ -1361,4 +1390,4 @@ check_os_release
 install_missing_packages
 main_menu
 clear
-cat $(pwd)/info.txt
+cat "$(pwd)/info.txt"
