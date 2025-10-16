@@ -903,7 +903,7 @@ v2ray_config() {
     },
     "inbounds": [
         {
-            "tag": "tcp",
+            "tag": "tls",
             "protocol": "vmess",
             "listen": "0.0.0.0",
             "port": 8001,
@@ -1068,7 +1068,7 @@ EOF
     cat <<- EOF >> ./config/v2ray/config.json
             {
                 "type": "field",
-                "inboundTag": ["tcp", "socks", "grpc", "quic"],
+                "inboundTag": ["tls", "tcp", "socks", "grpc", "quic"],
                 "outboundTag": "freedom"
             }
         ]
