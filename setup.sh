@@ -1137,9 +1137,9 @@ defaults
 frontend tls-in
     bind :::443 v4v6 ssl crt priv-fullchain-bundle.pem
 
+    tcp-request inspect-delay 5s
     tcp-request content accept if { ssl_fc_sni -i ${PRX_DOMAIN} ${EXT_DOMAIN} }
-    tcp-request content accept if !{ ssl_fc_sni -m found }
-    tcp-request content reject
+    tcp-request content silent-drop
 
     acl is_allowed_tls ssl_fc_sni -i ${PRX_DOMAIN} ${EXT_DOMAIN}
 EOF
@@ -1164,16 +1164,16 @@ frontend tcp-in
     tcp-request inspect-delay 5s
     tcp-request content accept if { req.ssl_hello_type 1 }
     tcp-request content accept if { req.ssl_sni -i ${PRX_DOMAIN} ${EXT_DOMAIN} }
-    # tcp-request content accept if !{ req.ssl_sni -m found }
-    # tcp-request content accept if { req.payload(0,1) -m bin 05 }
-    tcp-request content reject
+    tcp-request content accept if !{ req.ssl_sni -m found }
+    tcp-request content silent-drop
 
     acl is_vmess_tls_port dst_port 8001
     acl is_vmess_tcp_port dst_port 8002
     acl is_allowed_tcp req.ssl_sni -i ${PRX_DOMAIN} ${EXT_DOMAIN}
+    acl no_sni !{ req.ssl_sni -m found }
 
     use_backend v2ray_tls if is_vmess_tls_port is_allowed_tcp !HTTP
-    use_backend v2ray_tcp if is_vmess_tcp_port is_allowed_tcp !HTTP
+    use_backend v2ray_tcp if is_vmess_tcp_port no_sni !HTTP
 
 backend v2ray_tls
     server v2ray v2ray:8001
