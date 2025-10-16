@@ -1170,10 +1170,10 @@ frontend tcp-in
     acl is_vmess_tls_port dst_port 8001
     acl is_vmess_tcp_port dst_port 8002
     acl is_allowed_tcp req.ssl_sni -i ${PRX_DOMAIN} ${EXT_DOMAIN}
-    acl no_sni !{ req.ssl_sni -m found }
+    acl has_sni req.ssl_sni -m found
 
     use_backend v2ray_tls if is_vmess_tls_port is_allowed_tcp !HTTP
-    use_backend v2ray_tcp if is_vmess_tcp_port no_sni !HTTP
+    use_backend v2ray_tcp if is_vmess_tcp_port !has_sni !HTTP
 
 backend v2ray_tls
     server v2ray v2ray:8001
