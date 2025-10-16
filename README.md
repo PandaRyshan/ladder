@@ -1,14 +1,8 @@
 # README
 
-这个 repo 提供了一个开箱即用的梯子部署方案。你只需要有一个域名和一个 VPS，就可以使用脚本通过 Docker 容器化部署 V2Ray(v5.30.0) 和 OpenVPN(v2.6.14) 服务。
+容器化快速部署 v2ray shadowsocks-rust openvpn warp 等服务，使用 haproxy 作为 tcp 路由，nginx 作为 http 路由，内置 certbot 自动申请证书，以实现代理和 web 服务共享端口。
 
-## 组件
-
-* [V2Ray](https://github.com/v2fly/v2ray-core): V2Ray 代理服务 + DNS
-* [HAProxy](https://github.com/haproxy/haproxy): TCP 路由
-* [SWAG](https://github.com/linuxserver/docker-swag): HTTP 路由 + Web + CertBot
-* [Cloudflare-WARP](https://developers.cloudflare.com/warp-client/get-started/linux/): Cloudflare 提供的 socks5 代理
-* [OpenVPN](https://community.openvpn.net/openvpn/wiki/Downloads)：安全加密方式的 VPN
+ss 和 openvpn 共享 443 端口的意义不大，如果需要，可以停止使用 haproxy 的 tls 终止，并根据 sni 特征分流即可。
 
 ## 要求
 
@@ -22,48 +16,14 @@
 ### 安装
 
 ```shell
-# 下载脚本
-curl -LO https://raw.githubusercontent.com/PandaRyshan/ladder/main/setup.sh
-
-# 给脚本执行权限
-chmod +x setup.sh
-
-# 运行脚本
-./setup.sh
+curl -fsSL https://raw.githubusercontent.com/PandaRyshan/ladder/main/setup.sh | bash
 ```
 
 ### 查看 V2Ray 配置
 
-V2Ray 配置在 ladder 目录下的 info.txt 内，可以使用 `cat` 命令查看
+V2Ray 配置在 ladder 目录下的 info.txt 内。
 
-### 将访问目标通过 v2ray 转发至 warp 访问
-
-修改 v2ray 的配置文件 `config/v2ray/config.json`，找到 `routing` 配置中的 `cf-warp` 项，可以添加希望通过 warp 访问的域名或 IP 地址，例如：
-
-```json
-"routing": {
-   "rules": [
-      {
-         "type": "field",
-         "outboundTag": "cf-warp",
-         "domain": [
-            "geosite:openai",
-            "example.com"
-         ]
-      },
-      {
-         "type": "field",
-         "outboundTag": "cf-warp",
-         "ip": [
-            "geoip:cn",
-            "10.10.10.0/24"
-         ]
-      }
-   ]
-}
-```
-
-### 转发所有请求至其他 v2ray 服务器
+### v2ray 转发配置示例
 
 增加 rules 规则，按 `inboundTag` 拦截所有请求并转发，例如：
 
@@ -96,11 +56,17 @@ V2Ray 配置在 ladder 目录下的 info.txt 内，可以使用 `cat` 命令查�
 }
 ```
 
-### 新建用户
+### 管理
 
-使用菜单中的添加用户功能，会自动增加一个 v2ray 客户端 UUID，生成一个 OpenVPN 的客户端证书配置
+setup.sh 脚本中包含简单的管理功能，可以根据编号使用相应功能。
 
-## 问题
+## 组件
+
+* [V2Ray](https://github.com/v2fly/v2ray-core): V2Ray 代理服务 + DNS
+* [HAProxy](https://github.com/haproxy/haproxy): TCP 路由
+* [SWAG](https://github.com/linuxserver/docker-swag): HTTP 路由 + Web + CertBot
+* [Cloudflare-WARP](https://developers.cloudflare.com/warp-client/get-started/linux/): Cloudflare 提供的 socks5 代理
+* [OpenVPN](https://community.openvpn.net/openvpn/wiki/Downloads)：安全加密方式的 VPN
 
 ## 参考
 
@@ -116,7 +82,5 @@ V2Ray 配置在 ladder 目录下的 info.txt 内，可以使用 `cat` 命令查�
 
 ## Todo
 
-* [x] add deploy process
-* [x] add user mgmt menu
-* [ ] add change DNS menu
+* [ ] add quic support for haproxy
 * [ ] add help
