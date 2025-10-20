@@ -905,7 +905,7 @@ v2ray_config() {
         {
             "tag": "tls",
             "protocol": "vmess",
-            "listen": "0.0.0.0",
+            "listen": "[::]",
             "port": 8001,
             "settings": {
                 "clients": [
@@ -930,7 +930,7 @@ v2ray_config() {
         {
             "tag": "tcp",
             "protocol": "vmess",
-            "listen": "0.0.0.0",
+            "listen": "[::]",
             "port": 8002,
             "settings": {
                 "clients": [
@@ -947,10 +947,19 @@ v2ray_config() {
         {
             "tag": "socks",
             "protocol": "socks",
-            "listen": "0.0.0.0",
+            "listen": "[::]",
             "port": 8003,
+            "sniffing": {
+                "enabled": true,
+                "destOverride": [
+                    "http",
+                    "tls"
+                ],
+                "routeOnly": false
+            },
             "settings": {
-                "address": "127.0.0.1",
+                "allowTransparent": true,
+                "udp": true,
                 "auth": "noauth",
                 "accounts": [
                     {
@@ -963,7 +972,7 @@ v2ray_config() {
         {
             "tag": "grpc",
             "protocol": "vmess",
-            "listen": "0.0.0.0",
+            "listen": "[::]",
             "port": 8004,
             "settings": {
                 "clients": [
@@ -982,7 +991,7 @@ v2ray_config() {
         {
             "tag": "quic",
             "protocol": "vmess",
-            "listen": "0.0.0.0",
+            "listen": "[::]",
             "port": 8005,
             "settings": {
                 "clients": [
