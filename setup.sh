@@ -1144,7 +1144,7 @@ defaults
     timeout queue 1m
 
 frontend tls-in
-    bind :::443 v4v6 ssl crt priv-fullchain-bundle.pem
+    bind :::443 v4v6 ssl crt priv-fullchain-bundle.pem alpn h2
 
     tcp-request inspect-delay 5s
     tcp-request content accept if { req.ssl_hello_type 1 }
