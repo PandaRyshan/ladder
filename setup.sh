@@ -695,7 +695,7 @@ docker_compose_config() {
 services:
 
   haproxy:
-    image: haproxy:latest
+    image: ghcr.io/haproxytech/haproxy-docker-alpine-quic:latest
     container_name: haproxy
     volumes:
       - ./config/haproxy/haproxy.tcp.cfg:/usr/local/etc/haproxy/haproxy.cfg
