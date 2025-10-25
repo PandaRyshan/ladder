@@ -1135,13 +1135,21 @@ defaults
     mode tcp
     log global
     option tcplog
+    option dontlognull
+
     option tcpka
     option redispatch
-    option dontlognull
+    maxconn 1500
+    retries 1
+
     timeout connect 5s
-    timeout client 300s
-    timeout server 300s
-    timeout queue 1m
+    timeout http-request 10s
+    timeout queue 20s
+    timeout tunnel 24h
+    timeout server 1h
+    timeout client 1h
+    timeout server-fin 30s
+    timeout client-fin 30s
 
 frontend tls-in
     bind :::443 v4v6 ssl crt priv-fullchain-bundle.pem alpn h2
