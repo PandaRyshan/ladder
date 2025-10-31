@@ -641,9 +641,9 @@ net.ipv4.tcp_max_syn_backlog = 8192
 
 net.core.rmem_max = 67108864
 net.core.wmem_max = 67108864
-net.ipv4.tcp_rmem = 4096 131072 12582912
-net.ipv4.tcp_wmem = 4096 87380 12582912
-net.ipv4.tcp_mem = 262144 393216 524288
+net.ipv4.tcp_rmem = 4096 131072 67108864
+net.ipv4.tcp_wmem = 4096 131072 67108864
+net.ipv4.tcp_mem = 32768 65536 131072
 
 net.ipv4.ip_forward = 1
 net.ipv6.conf.all.forwarding = 1
@@ -677,8 +677,6 @@ HOST_NAME=${HOST_NAME}
 MASTER_URL=${MASTER_URL}
 SHARED_SECRET=${SHARED_SECRET}
 
-# for notification
-EMAIL=${EMAIL}
 EOF
 }
 
@@ -722,7 +720,6 @@ services:
       - URL=\${PRX_DOMAIN}
       - EXTRA_DOMAINS=\${EXT_DOMAIN}
       - VALIDATION=http
-      - EMAIL=\${EMAIL}
     volumes:
       - ./config/nginx:/config/nginx
       - ./config/certs:/config/etc/letsencrypt
@@ -1114,6 +1111,7 @@ global
     log stdout format raw local0 info
     stats timeout 30s
     daemon
+    ulimit-n 51200
 
     # set AEAD ciphers default
     ssl-default-bind-ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384
