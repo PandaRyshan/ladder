@@ -703,9 +703,7 @@ services:
     ports:
       - 443:443/tcp
       - 8001:8001/tcp
-      - 8001:8001/udp
       - 8002:8002/tcp
-      - 8002:8002/udp
     restart: unless-stopped
 
   nginx:
@@ -763,7 +761,6 @@ EOF
       - ipv6
     ports:
       - 8008:8388/tcp
-      - 8008:8388/udp
     volumes:
       - ./config/ss:/etc/shadowsocks
     restart: unless-stopped
@@ -806,7 +803,6 @@ EOF
       - ipv6
     ports:
       - 8009:1194/tcp
-      - 8009:1194/udp
     sysctls:
       - net.ipv4.ip_forward=1
       - net.ipv6.conf.all.forwarding=1
