@@ -823,7 +823,7 @@ EOF
     networks:
       - ipv6
     command:
-      -L "tcp://[::]:40000?sniffing=true&trpoxy=true&so_mark=100"
+      -L "tcp://[::]:40000?sniffing=true"
       -F "socks5://v2ray:8003"
     restart: unless-stopped
 
