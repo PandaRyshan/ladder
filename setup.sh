@@ -1107,6 +1107,7 @@ global
     log stdout format raw local0 info
     stats timeout 30s
     daemon
+    maxconn 2000
     ulimit-n 51200
 
     # set AEAD ciphers default
@@ -1133,7 +1134,6 @@ defaults
 
     option tcpka
     option redispatch
-    maxconn 1500
     retries 1
 
     timeout connect 5s
