@@ -582,7 +582,12 @@ enable_docker_ipv6() {
         tee /etc/docker/daemon.json > /dev/null <<EOF
 {
     "experimental": true,
-    "ip6tables": true
+    "ip6tables": true,
+    "log-driver": "json-file",
+    "log-opts": {
+        "max-size": "10m",
+        "max-file": "3"
+    }
 }
 EOF
     else
