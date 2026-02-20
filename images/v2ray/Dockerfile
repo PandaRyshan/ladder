@@ -2,7 +2,7 @@ FROM alpine:edge
 
 LABEL maintainer="Hu Xiaohong <xiaohong@pandas.run>"
 
-ENV VERSION="v5.30.0"
+ENV VERSION="v5.44.1"
 
 ARG TARGETARCH
 
