@@ -502,7 +502,12 @@ install_docker() {
     cat <<- EOF > /etc/docker/daemon.json
 {
     "experimental": true,
-    "ip6tables": true
+    "ip6tables": true,
+    "log-driver": "json-file",
+    "log-opts": {
+      "max-size": "5m",
+      "max-file": "2"
+    }
 }
 EOF
 
